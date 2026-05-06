@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reliable Network — Operations Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-bg">
+    <div class="login-grid"></div>
+  </div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">RN</div>
+      <div class="login-brand">
+        <span class="brand-name">Reliable Network</span>
+        <span class="brand-sub">Operations Portal</span>
+      </div>
+    </div>
+    <p class="login-desc">Sign in with your Reliable Network Google Workspace account to access the portal.</p>
+    <button class="google-btn" onclick="handleLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg>
+      Sign in with Google
+    </button>
+    <p class="login-note">Access restricted to @reliablenetwork.net accounts</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="app hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark sm">RN</div>
+      <div>
+        <div class="brand-name sm">Reliable Network</div>
+        <div class="brand-sub">Operations</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" data-page="newload" onclick="navigate('newload',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        New Load
+      </a>
+      <div class="nav-section-label">Manage</div>
+      <a class="nav-item" data-page="loads" onclick="navigate('loads',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        All Loads
+      </a>
+      <a class="nav-item" data-page="dispatch" onclick="navigate('dispatch',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Dispatch Board
+      </a>
+      <a class="nav-item" data-page="drivers" onclick="navigate('drivers',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Drivers
+      </a>
+      <a class="nav-item" data-page="trucks" onclick="navigate('trucks',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="21" r="1"/><circle cx="20" cy="21" r="1"/></svg>
+        Trucks
+      </a>
+      <div class="nav-section-label">Finance</div>
+      <a class="nav-item" data-page="financials" onclick="navigate('financials',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Financials
+      </a>
+      <a class="nav-item" data-page="compliance" onclick="navigate('compliance',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Compliance
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar">AD</div>
+        <div>
+          <div class="user-name">Admin</div>
+          <div class="user-email">admin@reliablenetwork.net</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="handleLogout()">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div id="pageTitle" class="page-title">Dashboard</div>
+      <div class="topbar-right">
+        <div class="date-badge" id="currentDate"></div>
+        <div class="status-dot"></div>
+        <span class="status-text">Live</span>
+      </div>
+    </div>
+
+    <!-- PAGES -->
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Active drivers</div>
+          <div class="kpi-value" id="kpi-drivers">5</div>
+          <div class="kpi-trend up">Under your authority</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Loads this month</div>
+          <div class="kpi-value" id="kpi-loads">0</div>
+          <div class="kpi-trend" id="kpi-loads-sub">May 2025</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Gross revenue</div>
+          <div class="kpi-value" id="kpi-gross">$0</div>
+          <div class="kpi-trend">This month</div>
+        </div>
+        <div class="kpi-card highlight">
+          <div class="kpi-label">Your net (9%)</div>
+          <div class="kpi-value green" id="kpi-net">$0</div>
+          <div class="kpi-trend">After 3% factoring</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Recent loads</span>
+            <button class="link-btn" onclick="navigate('loads',document.querySelector('[data-page=loads]'))">View all →</button>
+          </div>
+          <div id="recentLoadsList" class="loads-mini"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Commission breakdown</span>
+          </div>
+          <div class="comm-breakdown">
+            <div class="comm-row">
+              <span>Driver pays you</span>
+              <span class="comm-pct blue">12%</span>
+            </div>
+            <div class="comm-row">
+              <span>Factoring fee</span>
+              <span class="comm-pct amber">— 3%</span>
+            </div>
+            <div class="comm-divider"></div>
+            <div class="comm-row total">
+              <span>Your net margin</span>
+              <span class="comm-pct green">9%</span>
+            </div>
+            <div class="comm-example">
+              <div class="example-label">Example — $5,000 load</div>
+              <div class="example-row"><span>You collect</span><span>$600</span></div>
+              <div class="example-row"><span>Factoring</span><span>— $150</span></div>
+              <div class="example-row net"><span>You keep</span><span>$450</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW LOAD -->
+    <div id="page-newload" class="page">
+      <div class="form-card">
+        <div class="card-head">
+          <span class="card-title">Log new load</span>
+          <span class="card-sub">All commission fields calculate automatically</span>
+        </div>
+        <div class="form-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Load ID</label>
+              <input class="form-input" id="f-loadId" placeholder="LD-001">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input class="form-input" id="f-date" type="date">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Driver</label>
+              <select class="form-input" id="f-driver">
+                <option value="">Select driver...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Truck</label>
+              <select class="form-input" id="f-truck">
+                <option value="">Select truck...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Origin city</label>
+              <input class="form-input" id="f-origin" placeholder="Tampa, FL">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Destination city</label>
+              <input class="form-input" id="f-dest" placeholder="Atlanta, GA">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Broker name</label>
+              <input class="form-input" id="f-broker" placeholder="e.g. Total Express">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Broker load #</label>
+              <input class="form-input" id="f-brokerLoad" placeholder="e.g. TE-88821">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gross rate ($)</label>
+              <input class="form-input" id="f-gross" type="number" placeholder="0.00" oninput="calcLoad()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Payment status</label>
+              <select class="form-input" id="f-status">
+                <option>Pending</option>
+                <option>Paid</option>
+                <option>In Transit</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Auto Calc -->
+          <div class="calc-panel">
+            <div class="calc-title">Auto-calculated commissions</div>
+            <div class="calc-grid">
+              <div class="calc-item">
+                <div class="calc-item-label">Gross rate</div>
+                <div class="calc-item-val" id="c-gross">$0.00</div>
+              </div>
+              <div class="calc-item">
+                <div class="calc-item-label">Your 12%</div>
+                <div class="calc-item-val blue" id="c-12">$0.00</div>
+              </div>
+              <div class="calc-item">
+                <div class="calc-item-label">Factoring 3%</div>
+                <div class="calc-item-val amber" id="c-3">$0.00</div>
+              </div>
+              <div class="calc-item highlight-calc">
+                <div class="calc-item-label">Your net 9%</div>
+                <div class="calc-item-val green" id="c-9">$0.00</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label">Notes</label>
+            <textarea class="form-input" id="f-notes" rows="2" placeholder="Any additional notes..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn ghost" onclick="clearForm()">Clear</button>
+            <button class="btn primary" onclick="saveLoad()">Save load</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALL LOADS -->
+    <div id="page-loads" class="page">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">All loads</span>
+          <div class="filters">
+            <select class="filter-select" id="filterDriver" onchange="renderLoads()">
+              <option value="">All drivers</option>
+            </select>
+            <select class="filter-select" id="filterStatus" onchange="renderLoads()">
+              <option value="">All statuses</option>
+              <option>Pending</option>
+              <option>Paid</option>
+              <option>In Transit</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="loadsTable">
+            <thead>
+              <tr>
+                <th>Load ID</th><th>Date</th><th>Driver</th><th>Route</th>
+                <th>Broker</th><th>Gross</th><th>12%</th><th>3%</th><th>Net 9%</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="loadsBody"></tbody>
+          </table>
+        </div>
+        <div class="table-footer" id="loadsSummary"></div>
+      </div>
+    </div>
+
+    <!-- DISPATCH BOARD -->
+    <div id="page-dispatch" class="page">
+      <div class="dispatch-grid" id="dispatchGrid"></div>
+    </div>
+
+    <!-- DRIVERS -->
+    <div id="page-drivers" class="page">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Driver registry</span>
+          <button class="btn primary sm" onclick="showAddDriver()">+ Add driver</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th>Name</th><th>Phone</th><th>Status</th><th>CDL Expiry</th><th>Truck</th></tr>
+            </thead>
+            <tbody id="driversBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Add Driver Form -->
+      <div id="addDriverForm" class="form-card" style="display:none;margin-top:16px">
+        <div class="card-head"><span class="card-title">Add new driver</span></div>
+        <div class="form-body">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Full name</label><input class="form-input" id="d-name" placeholder="John Martinez"></div>
+            <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="d-phone" placeholder="813-555-0101"></div>
+            <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="d-email" placeholder="john@email.com"></div>
+            <div class="form-group"><label class="form-label">CDL Number</label><input class="form-input" id="d-cdl" placeholder="CDL123456"></div>
+            <div class="form-group"><label class="form-label">CDL Expiry</label><input class="form-input" type="date" id="d-cdlExp"></div>
+            <div class="form-group"><label class="form-label">Truck assigned</label><input class="form-input" id="d-truck" placeholder="TRK-001"></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn ghost" onclick="document.getElementById('addDriverForm').style.display='none'">Cancel</button>
+            <button class="btn primary" onclick="saveDriver()">Save driver</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRUCKS -->
+    <div id="page-trucks" class="page">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Truck registry</span>
+          <button class="btn primary sm" onclick="showAddTruck()">+ Add truck</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th>Year</th><th>Make/Model</th><th>VIN</th><th>Status</th><th>Next Inspection</th><th>Insurance Exp.</th></tr>
+            </thead>
+            <tbody id="trucksBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="addTruckForm" class="form-card" style="display:none;margin-top:16px">
+        <div class="card-head"><span class="card-title">Add new truck</span></div>
+        <div class="form-body">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Truck ID</label><input class="form-input" id="t-id" placeholder="TRK-003"></div>
+            <div class="form-group"><label class="form-label">Year</label><input class="form-input" id="t-year" placeholder="2020"></div>
+            <div class="form-group"><label class="form-label">Make</label><input class="form-input" id="t-make" placeholder="Freightliner"></div>
+            <div class="form-group"><label class="form-label">Model</label><input class="form-input" id="t-model" placeholder="Cascadia"></div>
+            <div class="form-group"><label class="form-label">VIN</label><input class="form-input" id="t-vin" placeholder="1FUJGEDV8CLBP8765"></div>
+            <div class="form-group"><label class="form-label">License Plate</label><input class="form-input" id="t-plate" placeholder="ABC1234"></div>
+            <div class="form-group"><label class="form-label">Next Inspection</label><input class="form-input" type="date" id="t-inspect"></div>
+            <div class="form-group"><label class="form-label">Insurance Expiry</label><input class="form-input" type="date" id="t-ins"></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn ghost" onclick="document.getElementById('addTruckForm').style.display='none'">Cancel</button>
+            <button class="btn primary" onclick="saveTruck()">Save truck</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINANCIALS -->
+    <div id="page-financials" class="page">
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Total gross (all time)</div><div class="kpi-value" id="fin-gross">$0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total collected (12%)</div><div class="kpi-value blue" id="fin-12">$0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total factoring (3%)</div><div class="kpi-value amber" id="fin-3">$0</div></div>
+        <div class="kpi-card highlight"><div class="kpi-label">Total net (9%)</div><div class="kpi-value green" id="fin-9">$0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">Monthly summary</span></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Month</th><th>Loads</th><th>Gross</th><th>Your 12%</th><th>Factoring 3%</th><th>Your Net 9%</th></tr></thead>
+            <tbody id="monthlyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPLIANCE -->
+    <div id="page-compliance" class="page">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Compliance tracker</span><span class="card-sub">Documents expiring within 30 days are flagged automatically</span></div>
+        <div id="complianceList" class="compliance-list"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
