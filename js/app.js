@@ -148,14 +148,14 @@ function saveLoad() {
   navigate('loads', document.querySelector('[data-page="loads"]'));
 }
 
-// ── All Loads ──
+// ── All Loads — Full CRUD ──
 function renderLoads() {
   const loads = DB.get('loads');
   const df = document.getElementById('filterDriver').value;
   const sf = document.getElementById('filterStatus').value;
   const filtered = loads.filter(l => (!df || l.driverId === df) && (!sf || l.status === sf));
 
-  document.getElementById('loadsBody').innerHTML = filtered.map(l => `
+  document.getElementById('loadsBody').innerHTML = filtered.length ? filtered.map(l => `
     <tr>
       <td class="mono">${l.id}</td>
       <td>${l.date}</td>
@@ -167,11 +167,78 @@ function renderLoads() {
       <td class="mono c-amber">${fmt(l.pct3)}</td>
       <td class="net-col">${fmt(l.net9)}</td>
       <td><span class="pill ${pillClass(l.status)}">${l.status}</span></td>
-    </tr>`).join('');
+      <td>
+        <div class="crud-actions">
+          <button class="crud-btn edit" onclick="editLoad('${l.id}')" title="Edit">✏️</button>
+          <button class="crud-btn delete" onclick="deleteLoad('${l.id}')" title="Delete">🗑️</button>
+        </div>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--gray-400)">No loads found</td></tr>';
 
   const tg = filtered.reduce((s, l) => s + Number(l.gross), 0);
   const tn = filtered.reduce((s, l) => s + Number(l.net9), 0);
   document.getElementById('loadsSummary').innerHTML = `${filtered.length} loads &nbsp;·&nbsp; Gross: ${fmt(tg)} &nbsp;·&nbsp; Your net: <strong style="color:var(--green)">${fmt(tn)}</strong>`;
+}
+
+function editLoad(id) {
+  const loads = DB.get('loads');
+  const l = loads.find(x => x.id === id);
+  if (!l) return;
+  openModal('Edit Load — ' + l.id, `
+    <div class="modal-grid">
+      <div class="fg"><label class="fl">Origin</label><input class="fi" id="el-origin" value="${l.origin}"></div>
+      <div class="fg"><label class="fl">Destination</label><input class="fi" id="el-dest" value="${l.dest}"></div>
+      <div class="fg"><label class="fl">Broker</label><input class="fi" id="el-broker" value="${l.broker}"></div>
+      <div class="fg"><label class="fl">Broker Load #</label><input class="fi" id="el-brokerLoad" value="${l.brokerLoad}"></div>
+      <div class="fg"><label class="fl">Gross Rate ($)</label><input class="fi" id="el-gross" type="number" value="${l.gross}" oninput="elCalc()"></div>
+      <div class="fg"><label class="fl">Status</label>
+        <select class="fi" id="el-status">
+          <option ${l.status==='Pending'?'selected':''}>Pending</option>
+          <option ${l.status==='Paid'?'selected':''}>Paid</option>
+          <option ${l.status==='In Transit'?'selected':''}>In Transit</option>
+        </select>
+      </div>
+      <div class="fg full"><label class="fl">Notes</label><input class="fi" id="el-notes" value="${l.notes||''}"></div>
+    </div>
+    <div class="modal-calc" id="elCalcPanel">
+      <div class="modal-calc-row"><span>Gross</span><span id="elc-gross">${fmt(l.gross)}</span></div>
+      <div class="modal-calc-row"><span>Your 12%</span><span class="c-navy" id="elc-12">${fmt(l.pct12)}</span></div>
+      <div class="modal-calc-row"><span>Factoring 3%</span><span class="c-amber" id="elc-3">${fmt(l.pct3)}</span></div>
+      <div class="modal-calc-row total"><span>Your net 9%</span><span class="c-green" id="elc-9">${fmt(l.net9)}</span></div>
+    </div>`,
+  () => {
+    const gross = parseFloat(document.getElementById('el-gross').value) || 0;
+    const idx = loads.findIndex(x => x.id === id);
+    loads[idx] = { ...l,
+      origin: document.getElementById('el-origin').value,
+      dest: document.getElementById('el-dest').value,
+      broker: document.getElementById('el-broker').value,
+      brokerLoad: document.getElementById('el-brokerLoad').value,
+      gross, pct12: +(gross*0.12).toFixed(2), pct3: +(gross*0.03).toFixed(2), net9: +(gross*0.09).toFixed(2),
+      status: document.getElementById('el-status').value,
+      notes: document.getElementById('el-notes').value
+    };
+    DB.set('loads', loads);
+    closeModal();
+    renderLoads();
+    showToast('Load ' + id + ' updated');
+  });
+}
+
+window.elCalc = function() {
+  const g = parseFloat(document.getElementById('el-gross').value) || 0;
+  document.getElementById('elc-gross').textContent = fmt(g);
+  document.getElementById('elc-12').textContent = fmt(g*0.12);
+  document.getElementById('elc-3').textContent = fmt(g*0.03);
+  document.getElementById('elc-9').textContent = fmt(g*0.09);
+};
+
+function deleteLoad(id) {
+  if (!confirm('Delete load ' + id + '? This cannot be undone.')) return;
+  const loads = DB.get('loads').filter(l => l.id !== id);
+  DB.set('loads', loads);
+  renderLoads();
+  showToast('Load ' + id + ' deleted');
 }
 
 // ── Dispatch ──
@@ -210,18 +277,73 @@ function renderDispatch() {
   }).join('');
 }
 
-// ── Drivers ──
+// ── Drivers — Full CRUD ──
 function renderDrivers() {
   const drivers = DB.get('drivers');
-  document.getElementById('driversBody').innerHTML = drivers.map(d => `
+  document.getElementById('driversBody').innerHTML = drivers.length ? drivers.map(d => `
     <tr>
       <td class="mono">${d.id}</td>
       <td><strong>${d.name}</strong></td>
       <td>${d.phone}</td>
       <td><span class="pill ${d.status === 'Active' ? 'pill-active' : 'pill-expired'}">${d.status}</span></td>
-      <td class="mono">${d.cdlExp}</td>
-      <td class="mono">${d.truck}</td>
-    </tr>`).join('');
+      <td class="mono">${d.cdlExp || '—'}</td>
+      <td class="mono">${d.truck || '—'}</td>
+      <td>
+        <div class="crud-actions">
+          <button class="crud-btn edit" onclick="editDriver('${d.id}')" title="Edit">✏️</button>
+          <button class="crud-btn delete" onclick="deleteDriver('${d.id}')" title="Delete">🗑️</button>
+        </div>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No drivers added yet</td></tr>';
+}
+
+function editDriver(id) {
+  const drivers = DB.get('drivers');
+  const d = drivers.find(x => x.id === id);
+  if (!d) return;
+  openModal('Edit Driver — ' + d.name, `
+    <div class="modal-grid">
+      <div class="fg"><label class="fl">Full name</label><input class="fi" id="ed-name" value="${d.name}"></div>
+      <div class="fg"><label class="fl">Phone</label><input class="fi" id="ed-phone" value="${d.phone}"></div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" id="ed-email" value="${d.email||''}"></div>
+      <div class="fg"><label class="fl">CDL Number</label><input class="fi" id="ed-cdl" value="${d.cdl||''}"></div>
+      <div class="fg"><label class="fl">CDL Expiry</label><input class="fi" type="date" id="ed-cdlExp" value="${d.cdlExp||''}"></div>
+      <div class="fg"><label class="fl">Truck assigned</label><input class="fi" id="ed-truck" value="${d.truck||''}"></div>
+      <div class="fg"><label class="fl">Status</label>
+        <select class="fi" id="ed-status">
+          <option ${d.status==='Active'?'selected':''}>Active</option>
+          <option ${d.status==='Inactive'?'selected':''}>Inactive</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Emergency Contact</label><input class="fi" id="ed-emergency" value="${d.emergency||''}"></div>
+    </div>`,
+  () => {
+    const idx = drivers.findIndex(x => x.id === id);
+    drivers[idx] = { ...d,
+      name: document.getElementById('ed-name').value,
+      phone: document.getElementById('ed-phone').value,
+      email: document.getElementById('ed-email').value,
+      cdl: document.getElementById('ed-cdl').value,
+      cdlExp: document.getElementById('ed-cdlExp').value,
+      truck: document.getElementById('ed-truck').value,
+      status: document.getElementById('ed-status').value,
+      emergency: document.getElementById('ed-emergency').value,
+    };
+    DB.set('drivers', drivers);
+    closeModal();
+    renderDrivers();
+    populateDriverDropdowns();
+    showToast('Driver ' + id + ' updated');
+  });
+}
+
+function deleteDriver(id) {
+  const d = DB.get('drivers').find(x => x.id === id);
+  if (!confirm('Delete driver ' + (d?.name || id) + '? This cannot be undone.')) return;
+  DB.set('drivers', DB.get('drivers').filter(x => x.id !== id));
+  renderDrivers();
+  populateDriverDropdowns();
+  showToast('Driver deleted');
 }
 
 function showAddDriver() {
@@ -248,19 +370,76 @@ function saveDriver() {
   renderDrivers();
 }
 
-// ── Trucks ──
+// ── Trucks — Full CRUD ──
 function renderTrucks() {
   const trucks = DB.get('trucks');
-  document.getElementById('trucksBody').innerHTML = trucks.map(t => `
+  document.getElementById('trucksBody').innerHTML = trucks.length ? trucks.map(t => `
     <tr>
       <td class="mono">${t.id}</td>
       <td>${t.year}</td>
       <td>${t.make} ${t.model}</td>
       <td class="mono" style="font-size:11px">${t.vin}</td>
       <td><span class="pill ${t.status === 'Active' ? 'pill-active' : 'pill-expired'}">${t.status}</span></td>
-      <td class="mono">${t.nextInspect}</td>
-      <td class="mono">${t.insExp}</td>
-    </tr>`).join('');
+      <td class="mono">${t.nextInspect || '—'}</td>
+      <td class="mono">${t.insExp || '—'}</td>
+      <td>
+        <div class="crud-actions">
+          <button class="crud-btn edit" onclick="editTruck('${t.id}')" title="Edit">✏️</button>
+          <button class="crud-btn delete" onclick="deleteTruck('${t.id}')" title="Delete">🗑️</button>
+        </div>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No trucks added yet</td></tr>';
+}
+
+function editTruck(id) {
+  const trucks = DB.get('trucks');
+  const t = trucks.find(x => x.id === id);
+  if (!t) return;
+  openModal('Edit Truck — ' + id, `
+    <div class="modal-grid">
+      <div class="fg"><label class="fl">Year</label><input class="fi" id="et-year" value="${t.year}"></div>
+      <div class="fg"><label class="fl">Make</label><input class="fi" id="et-make" value="${t.make}"></div>
+      <div class="fg"><label class="fl">Model</label><input class="fi" id="et-model" value="${t.model}"></div>
+      <div class="fg"><label class="fl">VIN</label><input class="fi" id="et-vin" value="${t.vin}"></div>
+      <div class="fg"><label class="fl">License Plate</label><input class="fi" id="et-plate" value="${t.plate||''}"></div>
+      <div class="fg"><label class="fl">State</label><input class="fi" id="et-state" value="${t.state||''}"></div>
+      <div class="fg"><label class="fl">Next Inspection</label><input class="fi" type="date" id="et-inspect" value="${t.nextInspect||''}"></div>
+      <div class="fg"><label class="fl">Insurance Expiry</label><input class="fi" type="date" id="et-ins" value="${t.insExp||''}"></div>
+      <div class="fg"><label class="fl">Insurance Provider</label><input class="fi" id="et-insProvider" value="${t.insProvider||''}"></div>
+      <div class="fg"><label class="fl">Status</label>
+        <select class="fi" id="et-status">
+          <option ${t.status==='Active'?'selected':''}>Active</option>
+          <option ${t.status==='Inactive'?'selected':''}>Inactive</option>
+          <option ${t.status==='In Shop'?'selected':''}>In Shop</option>
+        </select>
+      </div>
+    </div>`,
+  () => {
+    const idx = trucks.findIndex(x => x.id === id);
+    trucks[idx] = { ...t,
+      year: document.getElementById('et-year').value,
+      make: document.getElementById('et-make').value,
+      model: document.getElementById('et-model').value,
+      vin: document.getElementById('et-vin').value,
+      plate: document.getElementById('et-plate').value,
+      state: document.getElementById('et-state').value,
+      nextInspect: document.getElementById('et-inspect').value,
+      insExp: document.getElementById('et-ins').value,
+      insProvider: document.getElementById('et-insProvider').value,
+      status: document.getElementById('et-status').value,
+    };
+    DB.set('trucks', trucks);
+    closeModal();
+    renderTrucks();
+    showToast('Truck ' + id + ' updated');
+  });
+}
+
+function deleteTruck(id) {
+  if (!confirm('Delete truck ' + id + '? This cannot be undone.')) return;
+  DB.set('trucks', DB.get('trucks').filter(x => x.id !== id));
+  renderTrucks();
+  showToast('Truck deleted');
 }
 
 function showAddTruck() {
@@ -473,4 +652,52 @@ function dzReset() {
   document.getElementById('dzProcessing').style.display = 'none';
   document.getElementById('dzSuccess').style.display = 'none';
   document.querySelectorAll('.fi.auto-filled').forEach(el => el.classList.remove('auto-filled'));
+}
+
+// ── Modal System ──
+function openModal(title, bodyHtml, onSave) {
+  let modal = document.getElementById('crudModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'crudModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-head">
+          <span class="modal-title" id="modalTitle"></span>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" id="modalSaveBtn">Save changes</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  }
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalSaveBtn').onclick = onSave;
+  modal.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  const modal = document.getElementById('crudModal');
+  if (modal) { modal.classList.remove('modal-open'); document.body.style.overflow = ''; }
+}
+
+// ── Toast Notification ──
+function showToast(msg) {
+  let toast = document.getElementById('appToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'appToast';
+    toast.className = 'app-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('toast-show');
+  setTimeout(() => toast.classList.remove('toast-show'), 3000);
 }

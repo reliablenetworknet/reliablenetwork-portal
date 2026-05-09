@@ -845,3 +845,30 @@ textarea.fi { resize: vertical; }
 .dz-success-sub { font-size: 12px; color: var(--gray-400); }
 
 .fi.auto-filled { border-color: var(--green); background: #f0fdf4; }
+
+/* ── CRUD Action Buttons ── */
+.crud-actions { display: flex; gap: 6px; align-items: center; }
+.crud-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.crud-btn:hover { transform: scale(1.1); }
+.crud-btn.edit:hover { background: var(--blue-light); border-color: #bfdbfe; }
+.crud-btn.delete:hover { background: var(--red-light); border-color: #fecaca; }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,35,64,0.55); backdrop-filter: blur(4px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 24px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-overlay.modal-open { opacity: 1; pointer-events: all; }
+.modal-box { background: var(--white); border-radius: var(--radius-xl); width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.2); transform: translateY(16px); transition: transform 0.2s; }
+.modal-overlay.modal-open .modal-box { transform: translateY(0); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--gray-100); }
+.modal-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+.modal-close { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; color: var(--gray-500); transition: all 0.15s; }
+.modal-close:hover { background: var(--red-light); color: var(--red); border-color: #fecaca; }
+.modal-body { padding: 24px; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.modal-foot { padding: 16px 24px; border-top: 1px solid var(--gray-100); display: flex; justify-content: flex-end; gap: 10px; }
+.modal-calc { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 14px; margin-top: 16px; }
+.modal-calc-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: var(--gray-600); }
+.modal-calc-row.total { font-weight: 600; color: var(--navy); border-top: 1px solid var(--gray-200); margin-top: 6px; padding-top: 8px; }
+
+/* ── Toast ── */
+.app-toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: var(--white); padding: 12px 20px; border-radius: var(--radius); font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 3000; }
+.app-toast.toast-show { transform: translateY(0); opacity: 1; }
