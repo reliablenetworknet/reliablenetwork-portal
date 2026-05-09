@@ -807,3 +807,41 @@ textarea.fi { resize: vertical; }
 .comp-doc { font-size: 12px; color: var(--gray-400); }
 .comp-right { display: flex; align-items: center; gap: 14px; }
 .comp-date { font-size: 12px; font-family: var(--mono); color: var(--gray-500); }
+
+/* ── PDF Drop Zone ── */
+.drop-zone {
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius-lg);
+  padding: 36px 24px;
+  text-align: center;
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.drop-zone:hover { border-color: var(--navy); background: #f8fafc; }
+.drop-zone.dz-over { border-color: var(--navy); background: #eef4fb; transform: scale(1.01); box-shadow: 0 8px 32px rgba(15,35,64,0.1); }
+.drop-zone.dz-busy { border-color: #f4c842; background: #fffbeb; cursor: default; }
+.drop-zone.dz-done { border-color: var(--green); background: var(--green-light); cursor: default; }
+
+.dz-icon { width: 52px; height: 52px; background: var(--navy); border-radius: 13px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; transition: transform 0.2s; }
+.drop-zone:hover .dz-icon { transform: translateY(-3px); }
+.drop-zone.dz-over .dz-icon { transform: scale(1.15) rotate(-5deg); }
+.dz-title { font-size: 15px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+.dz-sub { font-size: 13px; color: var(--gray-500); margin-bottom: 12px; }
+.dz-hint { display: inline-block; font-size: 12px; font-weight: 500; color: var(--gray-400); background: var(--gray-100); border-radius: 20px; padding: 4px 14px; }
+
+.dz-processing { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.dz-spinner { width: 36px; height: 36px; border: 3px solid var(--gray-200); border-top-color: #f4c842; border-radius: 50%; animation: dzSpin 0.7s linear infinite; }
+@keyframes dzSpin { to { transform: rotate(360deg); } }
+.dz-proc-text { font-size: 14px; font-weight: 500; color: var(--navy); }
+.dz-proc-sub { font-size: 12px; color: var(--gray-400); }
+
+.dz-success { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.dz-success-icon { width: 48px; height: 48px; background: var(--green-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.dz-success-text { font-size: 15px; font-weight: 600; color: var(--green); }
+.dz-success-sub { font-size: 12px; color: var(--gray-400); }
+
+.fi.auto-filled { border-color: var(--green); background: #f0fdf4; }

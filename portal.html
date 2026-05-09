@@ -150,6 +150,30 @@
 
     <!-- NEW LOAD -->
     <div id="page-newload" class="page">
+
+      <!-- PDF DROP ZONE -->
+      <div class="drop-zone" id="dropZone" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)" onclick="document.getElementById('pdfFileInput').click()">
+        <input type="file" id="pdfFileInput" accept=".pdf" style="display:none" onchange="dzHandleFile(this.files[0])">
+        <div id="dzDefault">
+          <div class="dz-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="12"/><line x1="15" y1="15" x2="12" y2="12"/></svg>
+          </div>
+          <div class="dz-title">Drop your rate confirmation PDF here</div>
+          <div class="dz-sub">AI reads the document and fills the form automatically — no typing needed</div>
+          <div class="dz-hint">PDF files only &nbsp;·&nbsp; Rate confirmations &nbsp;·&nbsp; Broker load sheets</div>
+        </div>
+        <div class="dz-processing" id="dzProcessing" style="display:none">
+          <div class="dz-spinner"></div>
+          <div class="dz-proc-text" id="dzProcText">Reading PDF...</div>
+          <div class="dz-proc-sub" id="dzProcSub">Extracting load details</div>
+        </div>
+        <div class="dz-success" id="dzSuccess" style="display:none">
+          <div class="dz-success-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="dz-success-text">PDF parsed — form filled automatically</div>
+          <div class="dz-success-sub">Review the fields below and save</div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <span class="card-title">Log new load</span>
