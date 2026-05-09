@@ -3,310 +3,1188 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reliable Network — Operations Portal</title>
+  <title>Reliable Network — Your Load. Our Responsibility.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #0f2340;
+      --navy-mid: #1a3560;
+      --navy-light: #254880;
+      --blue: #2e6db4;
+      --blue-light: #dbeafe;
+      --gold: #f4c842;
+      --gold-dark: #d4a813;
+      --warm: #fdf8f0;
+      --warm-mid: #f5ede0;
+      --cream: #fffdf9;
+      --green: #16a34a;
+      --gray-400: #94a3b8;
+      --gray-600: #475569;
+      --gray-800: #1e293b;
+      --white: #ffffff;
+      --font: 'DM Sans', sans-serif;
+      --display: 'Playfair Display', serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--cream);
+      color: var(--gray-800);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(255,253,249,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(15,35,64,0.08);
+      padding: 0 40px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: box-shadow 0.2s;
+    }
+
+    nav.scrolled { box-shadow: 0 4px 24px rgba(15,35,64,0.08); }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .nav-brand { font-size: 16px; font-weight: 600; color: var(--navy); letter-spacing: -0.2px; }
+    .nav-tag { font-size: 11px; color: var(--gray-400); display: block; margin-top: 1px; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-600);
+      transition: color 0.15s;
+    }
+
+    .nav-links a:hover { color: var(--navy); }
+
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-outline {
+      padding: 8px 20px;
+      border: 1.5px solid var(--navy);
+      border-radius: 8px;
+      background: transparent;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--navy);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-outline:hover { background: var(--navy); color: var(--white); }
+
+    .btn-solid {
+      padding: 8px 20px;
+      border: 1.5px solid var(--gold);
+      border-radius: 8px;
+      background: var(--gold);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-solid:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      padding: 100px 40px 60px;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 70% 40%, rgba(46,109,180,0.2) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 80%, rgba(244,200,66,0.08) 0%, transparent 50%),
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
+    }
+
+    .hero-road {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 120px;
+      background: linear-gradient(to top, rgba(15,35,64,0.8), transparent);
+    }
+
+    .hero-road-line {
+      position: absolute;
+      bottom: 30px;
+      left: 0; right: 0;
+      height: 3px;
+      background: repeating-linear-gradient(90deg, var(--gold) 0px, var(--gold) 40px, transparent 40px, transparent 80px);
+      opacity: 0.3;
+    }
+
+    .hero-inner {
+      position: relative;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .hero-left {}
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(244,200,66,0.12);
+      border: 1px solid rgba(244,200,66,0.25);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .hero-eyebrow-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--gold);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .hero-title {
+      font-family: var(--display);
+      font-size: 56px;
+      font-weight: 600;
+      color: var(--white);
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 20px;
+    }
+
+    .hero-title em {
+      font-style: italic;
+      color: var(--gold);
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.7;
+      margin-bottom: 36px;
+      max-width: 440px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero-primary {
+      padding: 14px 28px;
+      background: var(--gold);
+      border: 2px solid var(--gold);
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-hero-primary:hover { background: var(--gold-dark); border-color: var(--gold-dark); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(244,200,66,0.3); }
+
+    .btn-hero-secondary {
+      padding: 14px 28px;
+      background: transparent;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-hero-secondary:hover { border-color: rgba(255,255,255,0.5); color: var(--white); }
+
+    .hero-right {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .hero-card-stack {
+      position: relative;
+      width: 340px;
+    }
+
+    .hero-card {
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 24px;
+    }
+
+    .hero-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 16px;
+    }
+
+    .hero-stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      font-size: 14px;
+    }
+    .hero-stat-row:last-child { border-bottom: none; }
+    .hero-stat-label { color: rgba(255,255,255,0.5); }
+    .hero-stat-val { font-weight: 600; color: var(--white); font-family: 'DM Sans', monospace; }
+    .hero-stat-val.gold { color: var(--gold); }
+    .hero-stat-val.green { color: #4ade80; }
+
+    .hero-mini-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .hero-mini {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .hero-mini-val { font-size: 22px; font-weight: 600; color: var(--white); }
+    .hero-mini-val.gold { color: var(--gold); }
+    .hero-mini-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+    /* ── SECTIONS ── */
+    section { padding: 96px 40px; }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .section-eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--blue);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: var(--display);
+      font-size: 40px;
+      font-weight: 600;
+      color: var(--navy);
+      line-height: 1.2;
+      letter-spacing: -0.5px;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 17px;
+      color: var(--gray-600);
+      line-height: 1.7;
+      max-width: 560px;
+    }
+
+    /* ── ABOUT ── */
+    .about { background: var(--warm); }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 72px;
+      align-items: center;
+    }
+
+    .about-visual {
+      position: relative;
+    }
+
+    .about-shield {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .about-points {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    .about-point {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .about-point-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .about-point-title { font-size: 15px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+    .about-point-text { font-size: 14px; color: var(--gray-600); line-height: 1.6; }
+
+    /* ── STATS ── */
+    .stats { background: var(--navy); }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+    }
+
+    .stat-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 40px 32px;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .stat-item:hover { background: rgba(255,255,255,0.07); }
+    .stat-item:first-child { border-radius: 16px 0 0 16px; }
+    .stat-item:last-child { border-radius: 0 16px 16px 0; }
+
+    .stat-num {
+      font-family: var(--display);
+      font-size: 52px;
+      font-weight: 700;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .stat-label { font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 500; }
+
+    /* ── SERVICES ── */
+    .services { background: var(--cream); }
+
+    .services-head {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .services-head .section-sub { margin: 0 auto; }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .service-card {
+      background: var(--white);
+      border: 1px solid rgba(15,35,64,0.08);
+      border-radius: 20px;
+      padding: 32px;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .service-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--navy), var(--blue));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .service-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(15,35,64,0.1); }
+    .service-card:hover::before { opacity: 1; }
+
+    .service-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: var(--warm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .service-title { font-size: 17px; font-weight: 600; color: var(--navy); margin-bottom: 10px; }
+    .service-text { font-size: 14px; color: var(--gray-600); line-height: 1.65; }
+
+    .service-tag {
+      display: inline-block;
+      margin-top: 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--blue);
+      background: var(--blue-light);
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── JOIN US ── */
+    .join { background: var(--warm); }
+
+    .join-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .join-card {
+      background: var(--white);
+      border: 1px solid rgba(15,35,64,0.08);
+      border-radius: 20px;
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .join-card:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(15,35,64,0.1); }
+
+    .join-card.featured {
+      background: var(--navy);
+      border-color: var(--navy);
+    }
+
+    .join-card-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      background: var(--warm);
+      color: var(--navy);
+    }
+
+    .join-card.featured .join-card-tag {
+      background: rgba(244,200,66,0.15);
+      color: var(--gold);
+    }
+
+    .join-card-title {
+      font-family: var(--display);
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    .join-card.featured .join-card-title { color: var(--white); }
+
+    .join-card-text {
+      font-size: 15px;
+      color: var(--gray-600);
+      line-height: 1.65;
+      margin-bottom: 24px;
+    }
+
+    .join-card.featured .join-card-text { color: rgba(255,255,255,0.6); }
+
+    .join-perks {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .join-perk {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--gray-600);
+    }
+
+    .join-card.featured .join-perk { color: rgba(255,255,255,0.7); }
+
+    .join-perk-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .join-card.featured .join-perk-check { background: rgba(244,200,66,0.2); }
+
+    .btn-join {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 24px;
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+      border: 2px solid var(--navy);
+      background: var(--navy);
+      color: var(--white);
+    }
+    .btn-join:hover { background: var(--navy-mid); border-color: var(--navy-mid); transform: translateY(-1px); }
+
+    .btn-join.gold {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--navy);
+    }
+    .btn-join.gold:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+
+    /* ── CONTACT ── */
+    .contact { background: var(--cream); }
+
+    .contact-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 72px;
+      align-items: start;
+    }
+
+    .contact-form {
+      background: var(--white);
+      border: 1px solid rgba(15,35,64,0.08);
+      border-radius: 20px;
+      padding: 36px;
+    }
+
+    .contact-form-title { font-size: 20px; font-weight: 600; color: var(--navy); margin-bottom: 24px; }
+
+    .cf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .cf-group { display: flex; flex-direction: column; gap: 5px; }
+    .cf-group.full { grid-column: 1/-1; }
+    .cf-label { font-size: 12px; font-weight: 600; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.4px; }
+    .cf-input {
+      padding: 10px 14px;
+      border: 1.5px solid rgba(15,35,64,0.12);
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--gray-800);
+      background: var(--cream);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      width: 100%;
+    }
+    .cf-input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(15,35,64,0.08); }
+    textarea.cf-input { resize: vertical; }
+
+    .cf-select {
+      padding: 10px 14px;
+      border: 1.5px solid rgba(15,35,64,0.12);
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--gray-800);
+      background: var(--cream);
+      width: 100%;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      background: var(--navy);
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--white);
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 6px;
+    }
+    .btn-submit:hover { background: var(--navy-mid); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(15,35,64,0.2); }
+
+    .contact-info { padding-top: 8px; }
+
+    .contact-info-title {
+      font-family: var(--display);
+      font-size: 36px;
+      font-weight: 600;
+      color: var(--navy);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .contact-info-sub {
+      font-size: 16px;
+      color: var(--gray-600);
+      line-height: 1.7;
+      margin-bottom: 36px;
+    }
+
+    .contact-details { display: flex; flex-direction: column; gap: 16px; }
+
+    .contact-detail {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      background: var(--white);
+      border: 1px solid rgba(15,35,64,0.08);
+      border-radius: 12px;
+    }
+
+    .cd-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .cd-label { font-size: 11px; color: var(--gray-400); font-weight: 500; }
+    .cd-val { font-size: 14px; font-weight: 500; color: var(--navy); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--navy);
+      padding: 48px 40px;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .footer-logo { display: flex; align-items: center; gap: 12px; }
+    .footer-brand { font-size: 14px; font-weight: 500; color: var(--white); }
+    .footer-tag { font-size: 11px; color: rgba(255,255,255,0.35); display: block; margin-top: 2px; }
+
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 13px; color: rgba(255,255,255,0.45); text-decoration: none; transition: color 0.15s; }
+    .footer-links a:hover { color: rgba(255,255,255,0.8); }
+
+    .footer-copy { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+    /* ── Scroll animation ── */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+  </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="loginScreen" class="login-screen">
-  <div class="login-bg"></div>
-  <div class="login-card">
-    <div class="login-logo-wrap">
-      <svg width="72" height="72" viewBox="0 0 100 100" fill="none">
-        <rect width="100" height="100" rx="22" fill="#0f2340"/>
-        <path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.25"/>
-        <path d="M50 16 L74 26 L74 52 Q74 70 50 84 Q26 70 26 52 L26 26 Z" fill="white" opacity="0.06"/>
+<!-- NAV -->
+<nav id="navbar">
+  <a class="nav-logo" href="#">
+    <svg width="36" height="36" viewBox="0 0 100 100" fill="none">
+      <rect width="100" height="100" rx="20" fill="#0f2340"/>
+      <path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.25"/>
+      <path d="M50 16 L74 26 L74 52 Q74 70 50 84 Q26 70 26 52 L26 26 Z" fill="white" opacity="0.06"/>
+      <rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/>
+      <text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text>
+      <circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+      <circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/>
+      <circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+    </svg>
+    <div>
+      <span class="nav-brand">Reliable Network</span>
+      <span class="nav-tag">reliablenetwork.net</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#join">Join Us</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="#contact" class="btn-outline">Get in touch</a>
+    <a href="portal.html" class="btn-solid">Portal Login</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-road"><div class="hero-road-line"></div></div>
+  <div class="hero-inner">
+    <div class="hero-left">
+      <div class="hero-eyebrow">
+        <div class="hero-eyebrow-dot"></div>
+        Florida-based · DOT Authorized Carrier
+      </div>
+      <h1 class="hero-title">
+        Your load.<br>
+        <em>Our responsibility.</em>
+      </h1>
+      <p class="hero-sub">
+        Reliable Network is a carrier and dispatch company built on trust, transparency, and technology. We help owner operators thrive — and keep freight moving on time.
+      </p>
+      <div class="hero-actions">
+        <a href="#join" class="btn-hero-primary">
+          Lease on with us
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+        <a href="#services" class="btn-hero-secondary">Learn more</a>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-card-stack">
+        <div class="hero-card">
+          <div class="hero-card-title">Live operations snapshot</div>
+          <div class="hero-stat-row">
+            <span class="hero-stat-label">Active drivers</span>
+            <span class="hero-stat-val">5</span>
+          </div>
+          <div class="hero-stat-row">
+            <span class="hero-stat-label">Loads dispatched</span>
+            <span class="hero-stat-val">23 this month</span>
+          </div>
+          <div class="hero-stat-row">
+            <span class="hero-stat-label">On-time delivery</span>
+            <span class="hero-stat-val green">98.2%</span>
+          </div>
+          <div class="hero-stat-row">
+            <span class="hero-stat-label">Driver earnings</span>
+            <span class="hero-stat-val gold">Top 12% kept</span>
+          </div>
+          <div class="hero-mini-cards">
+            <div class="hero-mini">
+              <div class="hero-mini-val gold">24/7</div>
+              <div class="hero-mini-label">Dispatch support</div>
+            </div>
+            <div class="hero-mini">
+              <div class="hero-mini-val">FL</div>
+              <div class="hero-mini-label">Home base</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="about" id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-visual fade-up">
+        <div class="about-shield">
+          <svg width="180" height="180" viewBox="0 0 100 100" fill="none">
+            <rect width="100" height="100" rx="20" fill="#0f2340"/>
+            <path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.25"/>
+            <path d="M50 16 L74 26 L74 52 Q74 70 50 84 Q26 70 26 52 L26 26 Z" fill="white" opacity="0.06"/>
+            <rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/>
+            <text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text>
+            <circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+            <circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/>
+            <circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+          </svg>
+        </div>
+      </div>
+      <div class="fade-up">
+        <div class="section-eyebrow">About us</div>
+        <h2 class="section-title">Built by a dispatcher,<br>for owner operators.</h2>
+        <p class="section-sub" style="margin-bottom:32px">Reliable Network was founded with one clear purpose — to give owner operators the support, technology, and transparency they deserve. We handle the back office so you can focus on the road.</p>
+        <div class="about-points">
+          <div class="about-point">
+            <div class="about-point-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <div class="about-point-title">DOT Authorized & Fully Compliant</div>
+              <div class="about-point-text">Operating under our own authority with all federal and state requirements met. Your safety and legal protection is our priority.</div>
+            </div>
+          </div>
+          <div class="about-point">
+            <div class="about-point-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div>
+              <div class="about-point-title">Technology-First Dispatch</div>
+              <div class="about-point-text">Our proprietary operations portal automates load booking, settlements, and compliance — so nothing falls through the cracks.</div>
+            </div>
+          </div>
+          <div class="about-point">
+            <div class="about-point-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div class="about-point-title">Driver-First Culture</div>
+              <div class="about-point-text">We treat every owner operator as a partner, not just a number. Transparent pay, fuel benefits, and real human support on every load.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="container">
+    <div class="stats-grid fade-up">
+      <div class="stat-item">
+        <div class="stat-num">24/7</div>
+        <div class="stat-label">Dispatch support</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">98%</div>
+        <div class="stat-label">On-time delivery</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">30¢</div>
+        <div class="stat-label">Fuel savings per gallon</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">$0</div>
+        <div class="stat-label">Hidden fees ever</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="services" id="services">
+  <div class="container">
+    <div class="services-head fade-up">
+      <div class="section-eyebrow">What we offer</div>
+      <h2 class="section-title">Everything you need<br>to run your truck.</h2>
+      <p class="section-sub">From load booking to settlements, fuel cards to compliance — we handle the business side so you can focus on driving.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card fade-up">
+        <div class="service-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <div class="service-title">Professional Dispatch</div>
+        <div class="service-text">We find the best loads for your truck, negotiate rates, and handle all broker communication. You drive — we do the rest.</div>
+        <span class="service-tag">For owner operators</span>
+      </div>
+      <div class="service-card fade-up">
+        <div class="service-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+        </div>
+        <div class="service-title">Lease-On Program</div>
+        <div class="service-text">Operate under our authority with full DOT coverage, insurance support, and access to premium freight lanes you can't get alone.</div>
+        <span class="service-tag">For owner operators</span>
+      </div>
+      <div class="service-card fade-up">
+        <div class="service-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="service-title">Fuel Card Benefits</div>
+        <div class="service-text">Access our Open Road fuel card program and save 30¢ per gallon at thousands of truck stops nationwide. Real savings on every mile.</div>
+        <span class="service-tag">For drivers</span>
+      </div>
+      <div class="service-card fade-up">
+        <div class="service-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </div>
+        <div class="service-title">Weekly Settlements</div>
+        <div class="service-text">Transparent, itemized pay statements delivered every week. See exactly what you earned, what was deducted, and what hits your account.</div>
+        <span class="service-tag">For drivers</span>
+      </div>
+      <div class="service-card fade-up">
+        <div class="service-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="service-title">Compliance Management</div>
+        <div class="service-text">We track your CDL, medical cards, inspections, and insurance expirations — and alert you before anything lapses.</div>
+        <span class="service-tag">For all drivers</span>
+      </div>
+      <div class="service-card fade-up">
+        <div class="service-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f2340" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="service-title">Real-Time Updates</div>
+        <div class="service-text">Instant load notifications via WhatsApp or email. Brokers get automated updates. Everyone stays informed — no calls needed.</div>
+        <span class="service-tag">For brokers & drivers</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- JOIN US -->
+<section class="join" id="join">
+  <div class="container">
+    <div class="fade-up" style="text-align:center;margin-bottom:48px">
+      <div class="section-eyebrow">Join Reliable Network</div>
+      <h2 class="section-title">Ready to get on the road<br>with the right team?</h2>
+      <p class="section-sub" style="margin:0 auto">Whether you're an owner operator looking to lease on or a broker looking for a reliable carrier — we're ready to work with you.</p>
+    </div>
+    <div class="join-grid">
+      <div class="join-card featured fade-up">
+        <span class="join-card-tag">Owner Operators</span>
+        <h3 class="join-card-title">Lease on with Reliable Network</h3>
+        <p class="join-card-text">Run under our authority, access premium freight, and let us handle the business side while you focus on the miles.</p>
+        <div class="join-perks">
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            Operate under our DOT authority
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            Access to Open Road fuel card — 30¢/gallon savings
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            Weekly transparent settlements
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            24/7 dispatch & broker support
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            No hidden fees — ever
+          </div>
+        </div>
+        <a href="#contact" class="btn-join gold">Apply to lease on →</a>
+      </div>
+      <div class="join-card fade-up">
+        <span class="join-card-tag">Brokers & Shippers</span>
+        <h3 class="join-card-title">Need a reliable carrier partner?</h3>
+        <p class="join-card-text">Work with a carrier that answers the phone, delivers on time, and keeps you updated every step of the way.</p>
+        <div class="join-perks">
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            Real-time load status updates
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            98% on-time delivery rate
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            Fast rate confirmation response
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            Insured & compliant fleet
+          </div>
+          <div class="join-perk">
+            <div class="join-perk-check">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            POD & documentation on delivery
+          </div>
+        </div>
+        <a href="#contact" class="btn-join">Work with us →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact" id="contact">
+  <div class="container">
+    <div class="contact-inner">
+      <div class="fade-up">
+        <div class="contact-info-title">Let's start a conversation.</div>
+        <p class="contact-info-sub">Whether you're ready to lease on, have a load to move, or just want to learn more — we'd love to hear from you. We respond fast.</p>
+        <div class="contact-details">
+          <div class="contact-detail">
+            <div class="cd-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <div>
+              <div class="cd-label">Email us</div>
+              <div class="cd-val">dispatch@reliablenetwork.net</div>
+            </div>
+          </div>
+          <div class="contact-detail">
+            <div class="cd-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div>
+              <div class="cd-label">Based in</div>
+              <div class="cd-val">Tampa, Florida</div>
+            </div>
+          </div>
+          <div class="contact-detail">
+            <div class="cd-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <div class="cd-label">Response time</div>
+              <div class="cd-val">Within 2 hours — Monday to Saturday</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="contact-form fade-up">
+        <div class="contact-form-title">Send us a message</div>
+        <div class="cf-grid">
+          <div class="cf-group"><label class="cf-label">First name</label><input class="cf-input" placeholder="John"></div>
+          <div class="cf-group"><label class="cf-label">Last name</label><input class="cf-input" placeholder="Martinez"></div>
+          <div class="cf-group"><label class="cf-label">Email</label><input class="cf-input" placeholder="john@email.com"></div>
+          <div class="cf-group"><label class="cf-label">Phone</label><input class="cf-input" placeholder="813-555-0101"></div>
+          <div class="cf-group full">
+            <label class="cf-label">I am a...</label>
+            <select class="cf-select">
+              <option>Owner operator looking to lease on</option>
+              <option>Broker with a load to move</option>
+              <option>Shipper looking for a carrier</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="cf-group full"><label class="cf-label">Message</label><textarea class="cf-input" rows="4" placeholder="Tell us a bit about what you're looking for..."></textarea></div>
+        </div>
+        <button class="btn-submit" onclick="handleSubmit(this)">Send message →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
+        <rect width="100" height="100" rx="20" fill="white" opacity="0.1"/>
+        <path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.5" opacity="0.3"/>
         <rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/>
         <text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text>
-        <circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
-        <circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/>
-        <circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
       </svg>
+      <div>
+        <span class="footer-brand">Reliable Network</span>
+        <span class="footer-tag">Your load. Our responsibility.</span>
+      </div>
     </div>
-    <h1 class="login-brand">Reliable Network</h1>
-    <p class="login-tag">Your load. Our responsibility.</p>
-    <div class="login-rule"></div>
-    <p class="login-desc">Sign in with your Reliable Network Google Workspace account to access the operations portal.</p>
-    <button class="google-btn" onclick="handleLogin()">
-      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg>
-      Sign in with Google
-    </button>
-    <p class="login-note">Restricted to @reliablenetwork.net accounts</p>
+    <div class="footer-links">
+      <a href="#about">About</a>
+      <a href="#services">Services</a>
+      <a href="#join">Join Us</a>
+      <a href="#contact">Contact</a>
+      <a href="portal.html">Portal Login</a>
+    </div>
+    <div class="footer-copy">© 2025 Reliable Network LLC · Tampa, FL · All rights reserved</div>
   </div>
-</div>
+</footer>
 
-<!-- APP -->
-<div id="app" class="app hidden">
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <svg width="36" height="36" viewBox="0 0 100 100" fill="none">
-        <rect width="100" height="100" rx="22" fill="white"/>
-        <path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="#0f2340" stroke-width="1.5" opacity="0.2"/>
-        <rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/>
-        <text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="#0f2340" text-anchor="middle" letter-spacing="2">RN</text>
-        <circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.8"/>
-        <circle cx="50" cy="90" r="2" fill="#0f2340" opacity="0.3"/>
-        <circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.8"/>
-      </svg>
-      <div>
-        <div class="sb-name">Reliable Network</div>
-        <div class="sb-sub">Operations Portal</div>
-      </div>
-    </div>
+<script>
+  // Scroll nav shadow
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+  });
 
-    <nav class="sb-nav">
-      <div class="nav-grp">Main</div>
-      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
-      <a class="nav-item" data-page="newload" onclick="navigate('newload',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>New Load</a>
+  // Fade up on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
-      <div class="nav-grp">Manage</div>
-      <a class="nav-item" data-page="loads" onclick="navigate('loads',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>All Loads</a>
-      <a class="nav-item" data-page="dispatch" onclick="navigate('dispatch',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Dispatch Board</a>
-      <a class="nav-item" data-page="drivers" onclick="navigate('drivers',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Drivers</a>
-      <a class="nav-item" data-page="trucks" onclick="navigate('trucks',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="21" r="1"/><circle cx="20" cy="21" r="1"/></svg>Trucks</a>
-
-      <div class="nav-grp">Finance</div>
-      <a class="nav-item" data-page="financials" onclick="navigate('financials',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Financials</a>
-      <a class="nav-item" data-page="compliance" onclick="navigate('compliance',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Compliance</a>
-    </nav>
-
-    <div class="sb-footer">
-      <div class="user-row">
-        <div class="user-av">AD</div>
-        <div>
-          <div class="user-nm">Admin</div>
-          <div class="user-em">admin@reliablenetwork.net</div>
-        </div>
-      </div>
-      <button class="logout-btn" onclick="handleLogout()">Sign out</button>
-    </div>
-  </aside>
-
-  <main class="main">
-    <div class="topbar">
-      <div>
-        <div class="pg-title" id="pageTitle">Dashboard</div>
-        <div class="pg-sub" id="pageSub">Welcome back — Reliable Network</div>
-      </div>
-      <div class="topbar-right">
-        <div class="live-badge"><span class="live-dot"></span>Live</div>
-        <div class="date-badge" id="currentDate"></div>
-      </div>
-    </div>
-
-    <!-- DASHBOARD -->
-    <div id="page-dashboard" class="page active">
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Active drivers</span><div class="kpi-ico ico-navy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div></div>
-          <div class="kpi-val" id="kpi-drivers">5</div>
-          <div class="kpi-hint">Under your authority</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Loads this month</span><div class="kpi-ico ico-blue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div></div>
-          <div class="kpi-val" id="kpi-loads">0</div>
-          <div class="kpi-hint" id="kpi-month">This month</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Gross revenue</span><div class="kpi-ico ico-slate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div></div>
-          <div class="kpi-val" id="kpi-gross">$0</div>
-          <div class="kpi-hint">This month</div>
-        </div>
-        <div class="kpi-card kpi-gold">
-          <div class="kpi-top"><span class="kpi-label">Your net (9%)</span><div class="kpi-ico ico-gold"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div></div>
-          <div class="kpi-val kpi-green" id="kpi-net">$0</div>
-          <div class="kpi-hint">After 3% factoring</div>
-        </div>
-      </div>
-
-      <div class="two-col">
-        <div class="card">
-          <div class="card-head">
-            <span class="card-title">Recent loads</span>
-            <button class="text-btn" onclick="navigate('loads',document.querySelector('[data-page=loads]'))">View all →</button>
-          </div>
-          <div id="recentLoadsList"></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><span class="card-title">Commission structure</span></div>
-          <div class="comm-body">
-            <div class="comm-row"><span>Driver pays you</span><span class="c-navy fw">12%</span></div>
-            <div class="comm-row"><span>Factoring fee</span><span class="c-amber fw">— 3%</span></div>
-            <div class="comm-sep"></div>
-            <div class="comm-row"><span class="fw" style="color:var(--navy)">Your net margin</span><span class="c-green fw">9%</span></div>
-            <div class="comm-example">
-              <div class="ex-head">Example — $5,000 load</div>
-              <div class="ex-row"><span>You collect (12%)</span><span>$600</span></div>
-              <div class="ex-row"><span>Factoring (3%)</span><span class="c-amber">— $150</span></div>
-              <div class="ex-row ex-net"><span>You keep (9%)</span><span>$450</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- NEW LOAD -->
-    <div id="page-newload" class="page">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">Log new load</span>
-          <span class="badge badge-blue">Commissions auto-calculated</span>
-        </div>
-        <div class="form-body">
-          <div class="form-grid">
-            <div class="fg"><label class="fl">Load ID</label><input class="fi" id="f-loadId" placeholder="LD-001"></div>
-            <div class="fg"><label class="fl">Date</label><input class="fi" id="f-date" type="date"></div>
-            <div class="fg"><label class="fl">Driver</label><select class="fi" id="f-driver"><option value="">Select driver...</option></select></div>
-            <div class="fg"><label class="fl">Truck</label><select class="fi" id="f-truck"><option value="">Select truck...</option></select></div>
-            <div class="fg"><label class="fl">Origin city</label><input class="fi" id="f-origin" placeholder="Tampa, FL"></div>
-            <div class="fg"><label class="fl">Destination city</label><input class="fi" id="f-dest" placeholder="Atlanta, GA"></div>
-            <div class="fg"><label class="fl">Broker name</label><input class="fi" id="f-broker" placeholder="e.g. Total Express"></div>
-            <div class="fg"><label class="fl">Broker load #</label><input class="fi" id="f-brokerLoad" placeholder="e.g. TE-88821"></div>
-            <div class="fg"><label class="fl">Gross rate ($)</label><input class="fi" id="f-gross" type="number" placeholder="0.00" oninput="calcLoad()"></div>
-            <div class="fg"><label class="fl">Payment status</label><select class="fi" id="f-status"><option>Pending</option><option>Paid</option><option>In Transit</option></select></div>
-          </div>
-          <div class="calc-panel">
-            <div class="calc-label">Live commission breakdown</div>
-            <div class="calc-grid">
-              <div class="calc-box"><div class="cb-label">Gross rate</div><div class="cb-val" id="c-gross">$0.00</div></div>
-              <div class="calc-box cb-blue"><div class="cb-label">Your 12%</div><div class="cb-val c-navy" id="c-12">$0.00</div></div>
-              <div class="calc-box cb-amber"><div class="cb-label">Factoring 3%</div><div class="cb-val c-amber" id="c-3">$0.00</div></div>
-              <div class="calc-box cb-green"><div class="cb-label">Your net 9%</div><div class="cb-val c-green" id="c-9">$0.00</div></div>
-            </div>
-          </div>
-          <div class="fg full" style="margin-top:16px"><label class="fl">Notes</label><textarea class="fi" id="f-notes" rows="2" placeholder="Any additional notes..."></textarea></div>
-          <div class="form-actions">
-            <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
-            <button class="btn btn-primary" onclick="saveLoad()">Save load</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ALL LOADS -->
-    <div id="page-loads" class="page">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">All loads</span>
-          <div class="filters">
-            <select class="filter-sel" id="filterDriver" onchange="renderLoads()"><option value="">All drivers</option></select>
-            <select class="filter-sel" id="filterStatus" onchange="renderLoads()"><option value="">All statuses</option><option>Pending</option><option>Paid</option><option>In Transit</option></select>
-          </div>
-        </div>
-        <div class="tbl-wrap">
-          <table class="tbl">
-            <thead><tr><th>Load ID</th><th>Date</th><th>Driver</th><th>Route</th><th>Broker</th><th>Gross</th><th>12%</th><th>3%</th><th>Net 9%</th><th>Status</th></tr></thead>
-            <tbody id="loadsBody"></tbody>
-          </table>
-        </div>
-        <div class="tbl-foot" id="loadsSummary"></div>
-      </div>
-    </div>
-
-    <!-- DISPATCH -->
-    <div id="page-dispatch" class="page">
-      <div class="dispatch-grid" id="dispatchGrid"></div>
-    </div>
-
-    <!-- DRIVERS -->
-    <div id="page-drivers" class="page">
-      <div class="card">
-        <div class="card-head"><span class="card-title">Driver registry</span><button class="btn btn-primary btn-sm" onclick="showAddDriver()">+ Add driver</button></div>
-        <div class="tbl-wrap">
-          <table class="tbl">
-            <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Status</th><th>CDL Expiry</th><th>Truck</th></tr></thead>
-            <tbody id="driversBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div id="addDriverForm" class="card" style="display:none;margin-top:16px">
-        <div class="card-head"><span class="card-title">Add new driver</span></div>
-        <div class="form-body">
-          <div class="form-grid">
-            <div class="fg"><label class="fl">Full name</label><input class="fi" id="d-name" placeholder="John Martinez"></div>
-            <div class="fg"><label class="fl">Phone</label><input class="fi" id="d-phone" placeholder="813-555-0101"></div>
-            <div class="fg"><label class="fl">Email</label><input class="fi" id="d-email" placeholder="john@email.com"></div>
-            <div class="fg"><label class="fl">CDL Number</label><input class="fi" id="d-cdl" placeholder="CDL123456"></div>
-            <div class="fg"><label class="fl">CDL Expiry</label><input class="fi" type="date" id="d-cdlExp"></div>
-            <div class="fg"><label class="fl">Truck assigned</label><input class="fi" id="d-truck" placeholder="TRK-001"></div>
-          </div>
-          <div class="form-actions">
-            <button class="btn btn-ghost" onclick="document.getElementById('addDriverForm').style.display='none'">Cancel</button>
-            <button class="btn btn-primary" onclick="saveDriver()">Save driver</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TRUCKS -->
-    <div id="page-trucks" class="page">
-      <div class="card">
-        <div class="card-head"><span class="card-title">Truck registry</span><button class="btn btn-primary btn-sm" onclick="showAddTruck()">+ Add truck</button></div>
-        <div class="tbl-wrap">
-          <table class="tbl">
-            <thead><tr><th>ID</th><th>Year</th><th>Make/Model</th><th>VIN</th><th>Status</th><th>Next Inspection</th><th>Insurance Exp.</th></tr></thead>
-            <tbody id="trucksBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div id="addTruckForm" class="card" style="display:none;margin-top:16px">
-        <div class="card-head"><span class="card-title">Add new truck</span></div>
-        <div class="form-body">
-          <div class="form-grid">
-            <div class="fg"><label class="fl">Truck ID</label><input class="fi" id="t-id" placeholder="TRK-003"></div>
-            <div class="fg"><label class="fl">Year</label><input class="fi" id="t-year" placeholder="2020"></div>
-            <div class="fg"><label class="fl">Make</label><input class="fi" id="t-make" placeholder="Freightliner"></div>
-            <div class="fg"><label class="fl">Model</label><input class="fi" id="t-model" placeholder="Cascadia"></div>
-            <div class="fg"><label class="fl">VIN</label><input class="fi" id="t-vin" placeholder="1FUJGEDV8CLBP8765"></div>
-            <div class="fg"><label class="fl">License Plate</label><input class="fi" id="t-plate" placeholder="ABC1234"></div>
-            <div class="fg"><label class="fl">Next Inspection</label><input class="fi" type="date" id="t-inspect"></div>
-            <div class="fg"><label class="fl">Insurance Expiry</label><input class="fi" type="date" id="t-ins"></div>
-          </div>
-          <div class="form-actions">
-            <button class="btn btn-ghost" onclick="document.getElementById('addTruckForm').style.display='none'">Cancel</button>
-            <button class="btn btn-primary" onclick="saveTruck()">Save truck</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- FINANCIALS -->
-    <div id="page-financials" class="page">
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-top"><span class="kpi-label">Total gross (all time)</span></div><div class="kpi-val" id="fin-gross">$0</div></div>
-        <div class="kpi-card"><div class="kpi-top"><span class="kpi-label">Collected (12%)</span></div><div class="kpi-val c-navy" id="fin-12">$0</div></div>
-        <div class="kpi-card"><div class="kpi-top"><span class="kpi-label">Factoring (3%)</span></div><div class="kpi-val c-amber" id="fin-3">$0</div></div>
-        <div class="kpi-card kpi-gold"><div class="kpi-top"><span class="kpi-label">Your net (9%)</span></div><div class="kpi-val kpi-green" id="fin-9">$0</div></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><span class="card-title">Monthly summary — 2025</span></div>
-        <div class="tbl-wrap">
-          <table class="tbl">
-            <thead><tr><th>Month</th><th>Loads</th><th>Gross</th><th>Your 12%</th><th>Factoring 3%</th><th>Your Net 9%</th></tr></thead>
-            <tbody id="monthlyBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- COMPLIANCE -->
-    <div id="page-compliance" class="page">
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">Compliance tracker</span>
-          <span class="badge badge-amber">Expiring within 30 days flagged automatically</span>
-        </div>
-        <div id="complianceList"></div>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<script src="js/data.js"></script>
-<script src="js/app.js"></script>
+  // Form submit
+  function handleSubmit(btn) {
+    btn.textContent = '✓ Message sent! We\'ll be in touch soon.';
+    btn.style.background = '#16a34a';
+    btn.disabled = true;
+  }
+</script>
 </body>
 </html>

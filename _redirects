@@ -1,0 +1,3 @@
+# Reliable Network — Netlify Redirects
+/portal    /portal.html    200
+/login     /portal.html    200
