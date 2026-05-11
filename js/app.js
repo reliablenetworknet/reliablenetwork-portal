@@ -40,12 +40,17 @@ function navigate(pageId, el) {
 }
 
 // ── Init ──
-function init() {
+async function init() {
   const now = new Date();
   document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  document.getElementById('f-date').value = now.toISOString().split('T')[0];
+
+  // Load all data from Google Sheets
+  await loadAllFromSheets();
+
+  // Now populate UI with fresh data
   populateDriverDropdowns();
   populateTruckDropdown();
-  document.getElementById('f-date').value = now.toISOString().split('T')[0];
   const loads = DB.get('loads');
   document.getElementById('f-loadId').value = 'LD-' + String(loads.length + 1).padStart(3, '0');
   renderDashboard();
@@ -115,7 +120,7 @@ function clearForm() {
   calcLoad();
 }
 
-function saveLoad() {
+async function saveLoad() {
   const gross = parseFloat(document.getElementById('f-gross').value);
   const dSel = document.getElementById('f-driver');
   const driverName = dSel.options[dSel.selectedIndex]?.text.split(' — ')[0] || '';
@@ -141,7 +146,7 @@ function saveLoad() {
 
   const loads = DB.get('loads');
   loads.unshift(load);
-  DB.set('loads', loads);
+  await DB.save('loads', loads, load);
   document.getElementById('f-loadId').value = 'LD-' + String(loads.length + 1).padStart(3, '0');
   clearForm();
   alert('✅ Load ' + load.id + ' saved!');
@@ -233,10 +238,10 @@ window.elCalc = function() {
   document.getElementById('elc-9').textContent = fmt(g*0.09);
 };
 
-function deleteLoad(id) {
+async function deleteLoad(id) {
   if (!confirm('Delete load ' + id + '? This cannot be undone.')) return;
   const loads = DB.get('loads').filter(l => l.id !== id);
-  DB.set('loads', loads);
+  await DB.remove('loads', loads, id);
   renderLoads();
   showToast('Load ' + id + ' deleted');
 }
@@ -337,10 +342,11 @@ function editDriver(id) {
   });
 }
 
-function deleteDriver(id) {
+async function deleteDriver(id) {
   const d = DB.get('drivers').find(x => x.id === id);
   if (!confirm('Delete driver ' + (d?.name || id) + '? This cannot be undone.')) return;
-  DB.set('drivers', DB.get('drivers').filter(x => x.id !== id));
+  const drivers = DB.get('drivers').filter(x => x.id !== id);
+  await DB.remove('drivers', drivers, id);
   renderDrivers();
   populateDriverDropdowns();
   showToast('Driver deleted');
@@ -351,9 +357,9 @@ function showAddDriver() {
   f.style.display = f.style.display === 'none' ? 'block' : 'none';
 }
 
-function saveDriver() {
+async function saveDriver() {
   const drivers = DB.get('drivers');
-  drivers.push({
+  const newDriver = {
     id: 'DRV-' + String(drivers.length + 1).padStart(3, '0'),
     name: document.getElementById('d-name').value,
     phone: document.getElementById('d-phone').value,
@@ -363,8 +369,9 @@ function saveDriver() {
     cdlExp: document.getElementById('d-cdlExp').value,
     truck: document.getElementById('d-truck').value,
     leaseStart: new Date().toISOString().split('T')[0]
-  });
-  DB.set('drivers', drivers);
+  };
+  drivers.push(newDriver);
+  await DB.save('drivers', drivers, newDriver);
   document.getElementById('addDriverForm').style.display = 'none';
   populateDriverDropdowns();
   renderDrivers();
@@ -435,9 +442,10 @@ function editTruck(id) {
   });
 }
 
-function deleteTruck(id) {
+async function deleteTruck(id) {
   if (!confirm('Delete truck ' + id + '? This cannot be undone.')) return;
-  DB.set('trucks', DB.get('trucks').filter(x => x.id !== id));
+  const trucks = DB.get('trucks').filter(x => x.id !== id);
+  await DB.remove('trucks', trucks, id);
   renderTrucks();
   showToast('Truck deleted');
 }
@@ -447,9 +455,9 @@ function showAddTruck() {
   f.style.display = f.style.display === 'none' ? 'block' : 'none';
 }
 
-function saveTruck() {
+async function saveTruck() {
   const trucks = DB.get('trucks');
-  trucks.push({
+  const newTruck = {
     id: document.getElementById('t-id').value,
     year: document.getElementById('t-year').value,
     make: document.getElementById('t-make').value,
@@ -459,8 +467,9 @@ function saveTruck() {
     status: 'Active',
     nextInspect: document.getElementById('t-inspect').value,
     insExp: document.getElementById('t-ins').value
-  });
-  DB.set('trucks', trucks);
+  };
+  trucks.push(newTruck);
+  await DB.save('trucks', trucks, newTruck);
   document.getElementById('addTruckForm').style.display = 'none';
   renderTrucks();
 }

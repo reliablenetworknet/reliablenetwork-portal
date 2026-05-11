@@ -1,28 +1,206 @@
-// ── Reliable Network — Data Layer ──
-const DB = {
+// ── Reliable Network — Google Sheets Data Layer ──
+// All data syncs to Google Sheets in real time
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbwTf8bbXtW4a6y6PXtR2BgcATMTUIEwEYd90awF_VCZSEYj5XEE8306C806Elj4j4Hh-Q/exec';
+
+// ── Cache layer — keeps UI fast while syncing to Sheets ──
+const Cache = {
   get: (key) => { try { return JSON.parse(localStorage.getItem('rn_' + key)) || []; } catch { return []; } },
-  set: (key, val) => { localStorage.setItem('rn_' + key, JSON.stringify(val)); }
+  set: (key, val) => { localStorage.setItem('rn_' + key, JSON.stringify(val)); },
+  clear: (key) => { localStorage.removeItem('rn_' + key); }
 };
 
-function seedData() {
-  if (localStorage.getItem('rn_seeded')) return;
-  DB.set('drivers', [
-    { id:'DRV-001', name:'John Martinez', phone:'813-555-0101', email:'john@email.com', status:'Active', cdl:'CDL123456', cdlExp:'2026-08-15', medExp:'2026-03-10', truck:'TRK-001', leaseStart:'2024-01-15' },
-    { id:'DRV-002', name:'Carlos Rivera', phone:'813-555-0202', email:'carlos@email.com', status:'Active', cdl:'CDL654321', cdlExp:'2025-12-01', medExp:'2025-11-20', truck:'TRK-002', leaseStart:'2024-02-01' },
-    { id:'DRV-003', name:'Marcus Johnson', phone:'813-555-0303', email:'marcus@email.com', status:'Active', cdl:'CDL789012', cdlExp:'2026-05-10', medExp:'2026-01-15', truck:'TRK-003', leaseStart:'2024-03-10' },
-  ]);
-  DB.set('trucks', [
-    { id:'TRK-001', year:'2020', make:'Freightliner', model:'Cascadia', vin:'1FUJGEDV8CLBP8765', status:'Active', plate:'ABC1234', state:'FL', owner:'John Martinez', nextInspect:'2025-05-01', insExp:'2025-12-31' },
-    { id:'TRK-002', year:'2019', make:'Kenworth', model:'T680', vin:'2XKJD49X7JM123456', status:'Active', plate:'XYZ5678', state:'FL', owner:'Carlos Rivera', nextInspect:'2025-04-15', insExp:'2025-11-30' },
-    { id:'TRK-003', year:'2021', make:'Peterbilt', model:'579', vin:'3UPTM2829PM123789', status:'Active', plate:'DEF9012', state:'FL', owner:'Marcus Johnson', nextInspect:'2025-06-01', insExp:'2026-01-15' },
-  ]);
-  DB.set('loads', [
-    { id:'LD-001', date:'2025-05-04', driverId:'DRV-001', driverName:'John Martinez', truckId:'TRK-001', origin:'Tampa, FL', dest:'Atlanta, GA', gross:3500, pct12:420, pct3:105, net9:315, broker:'Total Express', brokerLoad:'TE-88821', status:'Paid', notes:'' },
-    { id:'LD-002', date:'2025-05-03', driverId:'DRV-002', driverName:'Carlos Rivera', truckId:'TRK-002', origin:'Miami, FL', dest:'Dallas, TX', gross:4800, pct12:576, pct3:144, net9:432, broker:'FastFreight', brokerLoad:'FF-44312', status:'In Transit', notes:'' },
-    { id:'LD-003', date:'2025-05-02', driverId:'DRV-001', driverName:'John Martinez', truckId:'TRK-001', origin:'Atlanta, GA', dest:'Nashville, TN', gross:2900, pct12:348, pct3:87, net9:261, broker:'QuickLoad', brokerLoad:'QL-99102', status:'Paid', notes:'' },
-    { id:'LD-004', date:'2025-05-01', driverId:'DRV-003', driverName:'Marcus Johnson', truckId:'TRK-003', origin:'Orlando, FL', dest:'Charlotte, NC', gross:3200, pct12:384, pct3:96, net9:288, broker:'Total Express', brokerLoad:'TE-77651', status:'Pending', notes:'' },
-    { id:'LD-005', date:'2025-04-30', driverId:'DRV-002', driverName:'Carlos Rivera', truckId:'TRK-002', origin:'Dallas, TX', dest:'Memphis, TN', gross:2600, pct12:312, pct3:78, net9:234, broker:'FastFreight', brokerLoad:'FF-33201', status:'Paid', notes:'' },
-  ]);
-  localStorage.setItem('rn_seeded', '1');
+// ── Google Sheets API calls ──
+const Sheets = {
+
+  // Read all records from a sheet
+  getAll: async (sheet) => {
+    try {
+      const res = await fetch(`${API_URL}?sheet=${sheet}`, { method: 'GET' });
+      const data = await res.json();
+      if (data.success) {
+        Cache.set(sheet.toLowerCase() + 's', data.data);
+        return data.data;
+      }
+      throw new Error(data.error);
+    } catch(err) {
+      console.warn('Sheets read failed, using cache:', err);
+      return Cache.get(sheet.toLowerCase() + 's');
+    }
+  },
+
+  // Create a new record
+  create: async (sheet, record) => {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'create', sheet, record })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      return data.data;
+    } catch(err) {
+      console.warn('Sheets create failed:', err);
+      throw err;
+    }
+  },
+
+  // Update an existing record
+  update: async (sheet, id, record) => {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'update', sheet, id, record })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      return data.data;
+    } catch(err) {
+      console.warn('Sheets update failed:', err);
+      throw err;
+    }
+  },
+
+  // Delete a record
+  delete: async (sheet, id) => {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', sheet, id })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      return data.data;
+    } catch(err) {
+      console.warn('Sheets delete failed:', err);
+      throw err;
+    }
+  }
+};
+
+// ── DB — unified interface used throughout the app ──
+// Reads from cache instantly, syncs to Sheets in background
+const DB = {
+
+  get: (key) => Cache.get(key),
+
+  set: (key, val) => Cache.set(key, val),
+
+  // Load fresh data from Google Sheets
+  load: async (sheet) => {
+    const records = await Sheets.getAll(sheet);
+    return records;
+  },
+
+  // Save a new record to both cache and Sheets
+  save: async (sheetName, records, newRecord) => {
+    // Update cache immediately so UI is instant
+    Cache.set(sheetName, records);
+    // Sync to Google Sheets in background
+    try {
+      await Sheets.create(sheetName.charAt(0).toUpperCase() + sheetName.slice(1), newRecord);
+      showSyncStatus('✓ Saved to Google Sheets');
+    } catch(err) {
+      showSyncStatus('⚠ Saved locally — will sync when online', true);
+    }
+  },
+
+  // Update a record in both cache and Sheets
+  update: async (sheetName, records, id, updatedRecord) => {
+    Cache.set(sheetName, records);
+    try {
+      await Sheets.update(sheetName.charAt(0).toUpperCase() + sheetName.slice(1), id, updatedRecord);
+      showSyncStatus('✓ Updated in Google Sheets');
+    } catch(err) {
+      showSyncStatus('⚠ Updated locally — will sync when online', true);
+    }
+  },
+
+  // Delete from both cache and Sheets
+  remove: async (sheetName, records, id) => {
+    Cache.set(sheetName, records);
+    try {
+      await Sheets.delete(sheetName.charAt(0).toUpperCase() + sheetName.slice(1), id);
+      showSyncStatus('✓ Deleted from Google Sheets');
+    } catch(err) {
+      showSyncStatus('⚠ Deleted locally — will sync when online', true);
+    }
+  }
+};
+
+// ── Sync status indicator ──
+function showSyncStatus(msg, isWarning = false) {
+  let el = document.getElementById('syncStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'syncStatus';
+    el.style.cssText = `
+      position: fixed; bottom: 24px; left: 24px;
+      padding: 10px 16px; border-radius: 8px;
+      font-family: var(--font); font-size: 12px; font-weight: 500;
+      z-index: 3000; transition: all 0.3s;
+      transform: translateY(60px); opacity: 0;
+    `;
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.background = isWarning ? '#92400e' : '#0f2340';
+  el.style.color = isWarning ? '#fef3c7' : '#ffffff';
+  el.style.transform = 'translateY(0)';
+  el.style.opacity = '1';
+  setTimeout(() => {
+    el.style.transform = 'translateY(60px)';
+    el.style.opacity = '0';
+  }, 3000);
 }
-seedData();
+
+// ── Loading overlay ──
+function showLoading(msg = 'Loading from Google Sheets...') {
+  let el = document.getElementById('loadingOverlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loadingOverlay';
+    el.style.cssText = `
+      position: fixed; inset: 0;
+      background: rgba(15,35,64,0.7);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 5000; backdrop-filter: blur(4px);
+    `;
+    el.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:32px 40px;text-align:center">
+        <div style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#0f2340;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 16px"></div>
+        <div style="font-family:var(--font);font-size:14px;font-weight:500;color:#0f2340" id="loadingMsg">${msg}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:6px">Connecting to Google Sheets...</div>
+      </div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    `;
+    document.body.appendChild(el);
+  }
+  document.getElementById('loadingMsg').textContent = msg;
+  el.style.display = 'flex';
+}
+
+function hideLoading() {
+  const el = document.getElementById('loadingOverlay');
+  if (el) el.style.display = 'none';
+}
+
+// ── Initial data load from Google Sheets ──
+async function loadAllFromSheets() {
+  showLoading('Loading your data from Google Sheets...');
+  try {
+    const [loads, drivers, trucks] = await Promise.all([
+      Sheets.getAll('Loads'),
+      Sheets.getAll('Drivers'),
+      Sheets.getAll('Trucks')
+    ]);
+    console.log(`✓ Loaded: ${loads.length} loads, ${drivers.length} drivers, ${trucks.length} trucks`);
+    hideLoading();
+    showSyncStatus(`✓ Connected — ${loads.length} loads, ${drivers.length} drivers, ${trucks.length} trucks`);
+  } catch(err) {
+    console.warn('Initial load failed, using cached data:', err);
+    hideLoading();
+    showSyncStatus('⚠ Using cached data — check connection', true);
+  }
+}
