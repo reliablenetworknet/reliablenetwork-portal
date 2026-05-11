@@ -5,14 +5,277 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reliable Network — Your Load. Our Responsibility.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/home.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0f2340;--navy2:#1a3560;--navy3:#254880;
+      --blue:#2e6db4;--blue-light:#dbeafe;
+      --gold:#f4c842;--gold-dark:#d4a813;
+      --green:#16a34a;--green-light:#dcfce7;
+      --amber:#b45309;--amber-light:#fef3c7;
+      --warm:#fdf8f0;--cream:#fffdf9;
+      --gray-400:#94a3b8;--gray-500:#64748b;--gray-600:#475569;--gray-800:#1e293b;
+      --white:#ffffff;
+      --font:'DM Sans',sans-serif;--display:'Playfair Display',serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--cream);color:var(--gray-800);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+    /* ── NAV ── */
+    nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:0 48px;height:72px;display:flex;align-items:center;justify-content:space-between;transition:all 0.3s}
+    nav.scrolled{background:rgba(255,253,249,0.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(15,35,64,0.08);box-shadow:0 4px 32px rgba(15,35,64,0.06);height:64px}
+    .nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+    .nav-brand{font-size:16px;font-weight:600;color:var(--white);display:block;letter-spacing:-0.2px;transition:color 0.3s}
+    nav.scrolled .nav-brand{color:var(--navy)}
+    .nav-tag{font-size:11px;color:rgba(255,255,255,0.4);display:block;margin-top:1px;transition:color 0.3s}
+    nav.scrolled .nav-tag{color:var(--gray-400)}
+    .nav-links{display:flex;align-items:center;gap:36px;list-style:none}
+    .nav-links a{text-decoration:none;font-size:14px;font-weight:500;color:rgba(255,255,255,0.75);transition:color 0.2s;position:relative}
+    .nav-links a::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:1px;background:var(--gold);transform:scaleX(0);transition:transform 0.2s}
+    .nav-links a:hover{color:var(--white)}
+    .nav-links a:hover::after{transform:scaleX(1)}
+    nav.scrolled .nav-links a{color:var(--gray-600)}
+    nav.scrolled .nav-links a:hover{color:var(--navy)}
+    .nav-cta{display:flex;align-items:center;gap:10px}
+    .btn-outline-nav{padding:8px 18px;border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;background:transparent;font-family:var(--font);font-size:13px;font-weight:500;color:rgba(255,255,255,0.85);text-decoration:none;transition:all 0.2s}
+    .btn-outline-nav:hover{border-color:rgba(255,255,255,0.7);color:var(--white)}
+    nav.scrolled .btn-outline-nav{border-color:rgba(15,35,64,0.3);color:var(--navy)}
+    .btn-gold-nav{padding:8px 18px;border:1.5px solid var(--gold);border-radius:8px;background:var(--gold);font-family:var(--font);font-size:13px;font-weight:600;color:var(--navy);text-decoration:none;transition:all 0.2s}
+    .btn-gold-nav:hover{background:var(--gold-dark);border-color:var(--gold-dark);transform:translateY(-1px);box-shadow:0 4px 16px rgba(244,200,66,0.3)}
+
+    /* ── HERO ── */
+    .hero{min-height:100vh;background:var(--navy);position:relative;overflow:hidden;display:flex;align-items:center;padding:0 48px}
+    .hero-bg{position:absolute;inset:0}
+    .hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);background-size:72px 72px}
+    .orb{position:absolute;border-radius:50%;filter:blur(90px);animation:floatOrb 10s ease-in-out infinite}
+    .orb1{width:700px;height:700px;background:radial-gradient(circle,rgba(46,109,180,0.2) 0%,transparent 70%);top:-200px;right:-150px;animation-delay:0s}
+    .orb2{width:500px;height:500px;background:radial-gradient(circle,rgba(244,200,66,0.08) 0%,transparent 70%);bottom:-150px;left:5%;animation-delay:-4s}
+    .orb3{width:350px;height:350px;background:radial-gradient(circle,rgba(46,109,180,0.12) 0%,transparent 70%);top:30%;left:35%;animation-delay:-7s}
+    @keyframes floatOrb{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-40px) scale(1.06)}}
+
+    /* Road at bottom */
+    .hero-road{position:absolute;bottom:0;left:0;right:0;height:100px;background:linear-gradient(to top,rgba(5,12,25,0.9),transparent)}
+    .road-surface{position:absolute;bottom:0;left:0;right:0;height:48px;background:#0a0f1a}
+    .road-line{position:absolute;bottom:20px;left:0;right:0;height:3px;background:repeating-linear-gradient(90deg,var(--gold) 0,var(--gold) 60px,transparent 60px,transparent 120px);opacity:0.3;animation:roadAnim 2s linear infinite}
+    @keyframes roadAnim{from{transform:translateX(0)}to{transform:translateX(120px)}}
+    .road-line2{position:absolute;bottom:28px;left:0;right:0;height:1px;background:repeating-linear-gradient(90deg,rgba(255,255,255,0.15) 0,rgba(255,255,255,0.15) 40px,transparent 40px,transparent 80px);animation:roadAnim 2s linear infinite reverse}
+
+    /* Truck SVG animation */
+    .truck-wrap{position:absolute;bottom:48px;left:-320px;animation:driveIn 3s cubic-bezier(0.25,0.46,0.45,0.94) 0.5s forwards}
+    @keyframes driveIn{0%{left:-320px}100%{left:calc(100% - 340px)}}
+    .truck-idle{position:absolute;bottom:48px;right:20px;opacity:0;animation:truckAppear 0.1s 3.4s forwards}
+    @keyframes truckAppear{to{opacity:1}}
+
+    .hero-inner{position:relative;z-index:2;max-width:1140px;margin:0 auto;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;padding:120px 0 120px}
+
+    /* Hero text */
+    .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(244,200,66,0.1);border:1px solid rgba(244,200,66,0.2);border-radius:24px;padding:7px 16px;font-size:12px;font-weight:600;color:var(--gold);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:28px;opacity:0;animation:fadeUp 0.6s ease 0.3s forwards}
+    .eyebrow-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+    .hero-title{font-family:var(--display);font-size:72px;font-weight:700;color:var(--white);line-height:1.05;letter-spacing:-2px;margin-bottom:24px;opacity:0;animation:fadeUp 0.7s ease 0.5s forwards}
+    .hero-title em{font-style:italic;color:var(--gold);display:block}
+    .hero-sub{font-size:18px;color:rgba(255,255,255,0.55);line-height:1.75;max-width:480px;margin-bottom:44px;opacity:0;animation:fadeUp 0.7s ease 0.7s forwards}
+    .hero-btns{display:flex;gap:14px;flex-wrap:wrap;opacity:0;animation:fadeUp 0.7s ease 0.9s forwards}
+    .btn-hero-primary{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;background:var(--gold);border:2px solid var(--gold);border-radius:12px;font-family:var(--font);font-size:16px;font-weight:600;color:var(--navy);text-decoration:none;transition:all 0.2s}
+    .btn-hero-primary:hover{background:var(--gold-dark);transform:translateY(-2px);box-shadow:0 12px 32px rgba(244,200,66,0.35)}
+    .btn-hero-secondary{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;border:2px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.05);backdrop-filter:blur(8px);font-family:var(--font);font-size:16px;font-weight:500;color:rgba(255,255,255,0.85);text-decoration:none;transition:all 0.2s}
+    .btn-hero-secondary:hover{border-color:rgba(255,255,255,0.5);color:var(--white);transform:translateY(-2px)}
+
+    /* Glass card */
+    .hero-right{opacity:0;animation:fadeLeft 0.8s ease 0.6s forwards}
+    @keyframes fadeLeft{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:translateX(0)}}
+    .glass-card{background:rgba(255,255,255,0.06);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:28px;position:relative;overflow:hidden}
+    .glass-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)}
+    .gc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.07)}
+    .gc-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35)}
+    .live-pill{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#4ade80}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;animation:pulse 2s infinite}
+    .gc-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:14px}
+    .gc-row:last-of-type{border-bottom:none}
+    .gc-label{color:rgba(255,255,255,0.45)}
+    .gc-val{font-weight:600;color:var(--white)}
+    .gc-val.gold{color:var(--gold)}
+    .gc-val.green{color:#4ade80}
+    .gc-mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+    .gc-tile{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;text-align:center;transition:background 0.2s}
+    .gc-tile:hover{background:rgba(255,255,255,0.08)}
+    .gc-tile-val{font-size:26px;font-weight:700;color:var(--white);line-height:1;margin-bottom:5px}
+    .gc-tile-val.gold{color:var(--gold)}
+    .gc-tile-label{font-size:11px;color:rgba(255,255,255,0.35);font-weight:500}
+    .float-badge{position:absolute;background:var(--white);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.2);font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap;z-index:3}
+    .fb1{top:-14px;right:16px;animation:bobUp 4s ease-in-out infinite}
+    .fb2{bottom:-12px;left:16px;animation:bobUp 4s ease-in-out infinite;animation-delay:-2s}
+    @keyframes bobUp{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    .badge-dot{width:8px;height:8px;border-radius:50%}
+    .bd-green{background:var(--green)}
+    .bd-gold{background:var(--gold)}
+
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── MARQUEE ── */
+    .marquee{padding:0;background:var(--navy);overflow:hidden;border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05)}
+    .marquee-track{display:flex;padding:16px 0;animation:marquee 22s linear infinite;white-space:nowrap}
+    @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .marquee-item{display:inline-flex;align-items:center;gap:12px;padding:0 32px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.38);letter-spacing:0.3px}
+    .mdot{width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:0.5;flex-shrink:0}
+
+    /* ── SHARED SECTION STYLES ── */
+    section{padding:100px 48px}
+    .container{max-width:1140px;margin:0 auto}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--blue);margin-bottom:14px}
+    .eyebrow::before{content:'';width:20px;height:2px;background:var(--blue);border-radius:1px}
+    .section-title{font-family:var(--display);font-size:44px;font-weight:700;color:var(--navy);line-height:1.15;letter-spacing:-1px;margin-bottom:18px}
+    .section-sub{font-size:17px;color:var(--gray-500);line-height:1.75;max-width:560px}
+
+    /* ── ABOUT ── */
+    .about{background:var(--warm)}
+    .about-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+    .about-visual{position:relative;display:flex;align-items:center;justify-content:center;padding:48px}
+    .about-ring{position:absolute;border-radius:50%;border:1px solid rgba(15,35,64,0.08);animation:spinRing 20s linear infinite}
+    .ring1{width:260px;height:260px}
+    .ring2{width:340px;height:340px;border-style:dashed;animation-direction:reverse;animation-duration:30s}
+    @keyframes spinRing{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .about-points{display:flex;flex-direction:column;gap:16px;margin-top:32px}
+    .about-point{display:flex;gap:16px;align-items:flex-start;padding:20px;background:var(--white);border-radius:16px;border:1px solid rgba(15,35,64,0.06);transition:all 0.25s;cursor:default}
+    .about-point:hover{transform:translateX(6px);box-shadow:0 8px 24px rgba(15,35,64,0.08)}
+    .ap-icon{width:44px;height:44px;border-radius:12px;background:var(--navy);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .ap-title{font-size:15px;font-weight:600;color:var(--navy);margin-bottom:4px}
+    .ap-text{font-size:14px;color:var(--gray-500);line-height:1.6}
+
+    /* ── STATS ── */
+    .stats{background:var(--navy);padding:80px 48px;position:relative;overflow:hidden}
+    .stats::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:48px 48px}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,0.07);border-radius:20px;overflow:hidden;position:relative;z-index:1}
+    .stat-item{background:var(--navy);padding:52px 36px;text-align:center;position:relative;transition:background 0.25s;cursor:default}
+    .stat-item::before{content:'';position:absolute;top:0;left:50%;right:50%;height:3px;background:var(--gold);transition:all 0.35s}
+    .stat-item:hover{background:rgba(255,255,255,0.05)}
+    .stat-item:hover::before{left:15%;right:15%}
+    .stat-num{font-family:var(--display);font-size:58px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:10px;letter-spacing:-2px}
+    .stat-label{font-size:14px;color:rgba(255,255,255,0.45);font-weight:500}
+
+    /* ── SERVICES ── */
+    .services{background:var(--cream)}
+    .services-head{text-align:center;margin-bottom:60px}
+    .services-head .section-sub{margin:0 auto}
+    .services-head .eyebrow{justify-content:center}
+    .services-head .eyebrow::before{display:none}
+    .svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+    .svc-card{background:var(--white);border:1px solid rgba(15,35,64,0.07);border-radius:20px;padding:32px;position:relative;overflow:hidden;transition:all 0.3s;cursor:default}
+    .svc-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--navy),var(--blue));transform:scaleX(0);transform-origin:left;transition:transform 0.3s}
+    .svc-card:hover{transform:translateY(-6px);box-shadow:0 20px 48px rgba(15,35,64,0.1)}
+    .svc-card:hover::after{transform:scaleX(1)}
+    .svc-icon{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--navy),var(--navy2));display:flex;align-items:center;justify-content:center;margin-bottom:20px;transition:transform 0.3s}
+    .svc-card:hover .svc-icon{transform:scale(1.08) rotate(-3deg)}
+    .svc-title{font-size:17px;font-weight:600;color:var(--navy);margin-bottom:10px}
+    .svc-text{font-size:14px;color:var(--gray-500);line-height:1.65}
+    .svc-tag{display:inline-block;margin-top:16px;font-size:11px;font-weight:600;color:var(--blue);background:var(--blue-light);padding:3px 10px;border-radius:20px}
+
+    /* ── JOIN ── */
+    .join{background:var(--warm)}
+    .join-head{text-align:center;margin-bottom:52px}
+    .join-head .section-sub{margin:0 auto}
+    .join-head .eyebrow{justify-content:center}
+    .join-head .eyebrow::before{display:none}
+    .join-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .join-card{border-radius:24px;padding:44px;position:relative;overflow:hidden;transition:all 0.3s}
+    .join-card:hover{transform:translateY(-4px)}
+    .join-dark{background:linear-gradient(135deg,var(--navy),var(--navy2));border:1px solid rgba(255,255,255,0.08)}
+    .join-dark::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(244,200,66,0.1),transparent 70%)}
+    .join-light{background:var(--white);border:1px solid rgba(15,35,64,0.08);box-shadow:0 4px 24px rgba(15,35,64,0.05)}
+    .join-light:hover{box-shadow:0 20px 48px rgba(15,35,64,0.1)}
+    .jc-tag{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;padding:5px 12px;border-radius:20px;margin-bottom:20px}
+    .jc-tag-dark{background:rgba(244,200,66,0.12);color:var(--gold);border:1px solid rgba(244,200,66,0.2)}
+    .jc-tag-light{background:var(--warm);color:var(--navy);border:1px solid rgba(15,35,64,0.08)}
+    .jc-title{font-family:var(--display);font-size:30px;font-weight:600;line-height:1.2;margin-bottom:12px}
+    .jc-title-dark{color:var(--white)}
+    .jc-title-light{color:var(--navy)}
+    .jc-text{font-size:15px;line-height:1.7;margin-bottom:28px}
+    .jc-text-dark{color:rgba(255,255,255,0.55)}
+    .jc-text-light{color:var(--gray-500)}
+    .jc-perks{display:flex;flex-direction:column;gap:12px;margin-bottom:32px}
+    .jc-perk{display:flex;align-items:center;gap:12px;font-size:14px;transition:transform 0.2s}
+    .jc-perk:hover{transform:translateX(4px)}
+    .jc-perk-dark{color:rgba(255,255,255,0.65)}
+    .jc-perk-light{color:var(--gray-600)}
+    .perk-check{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .pc-dark{background:rgba(244,200,66,0.15)}
+    .pc-light{background:var(--green-light)}
+    .jc-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:12px;font-family:var(--font);font-size:14px;font-weight:600;text-decoration:none;transition:all 0.2s;border:2px solid transparent}
+    .jc-btn-gold{background:var(--gold);color:var(--navy);border-color:var(--gold)}
+    .jc-btn-gold:hover{background:var(--gold-dark);transform:translateY(-2px);box-shadow:0 8px 24px rgba(244,200,66,0.3)}
+    .jc-btn-navy{background:var(--navy);color:var(--white);border-color:var(--navy)}
+    .jc-btn-navy:hover{background:var(--navy2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,35,64,0.2)}
+
+    /* ── CONTACT ── */
+    .contact{background:var(--cream)}
+    .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+    .contact-title{font-family:var(--display);font-size:42px;font-weight:700;color:var(--navy);line-height:1.15;margin-bottom:16px;letter-spacing:-0.8px}
+    .contact-sub{font-size:16px;color:var(--gray-500);line-height:1.75;margin-bottom:40px}
+    .contact-details{display:flex;flex-direction:column;gap:14px}
+    .cd{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--white);border:1px solid rgba(15,35,64,0.07);border-radius:14px;transition:all 0.2s}
+    .cd:hover{transform:translateX(4px);box-shadow:0 4px 16px rgba(15,35,64,0.06)}
+    .cd-ico{width:40px;height:40px;border-radius:10px;background:var(--navy);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .cd-lbl{font-size:11px;color:var(--gray-400);font-weight:500;margin-bottom:2px}
+    .cd-val{font-size:14px;font-weight:500;color:var(--navy)}
+    .contact-form{background:var(--white);border:1px solid rgba(15,35,64,0.08);border-radius:24px;padding:40px;box-shadow:0 8px 40px rgba(15,35,64,0.06);position:relative;overflow:hidden}
+    .contact-form::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--navy),var(--blue),var(--gold))}
+    .cf-title{font-size:20px;font-weight:600;color:var(--navy);margin-bottom:24px;letter-spacing:-0.3px}
+    .cf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+    .cf-group{display:flex;flex-direction:column;gap:5px}
+    .cf-group.full{grid-column:1/-1}
+    .cf-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500)}
+    .cf-input{padding:11px 14px;border:1.5px solid rgba(15,35,64,0.1);border-radius:10px;font-family:var(--font);font-size:14px;color:var(--gray-800);background:var(--cream);transition:all 0.2s;width:100%}
+    .cf-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(15,35,64,0.08);background:var(--white)}
+    .cf-input::placeholder{color:var(--gray-400)}
+    textarea.cf-input{resize:vertical}
+    .cf-select{padding:11px 14px;border:1.5px solid rgba(15,35,64,0.1);border-radius:10px;font-family:var(--font);font-size:14px;color:var(--gray-800);background:var(--cream);width:100%}
+    .btn-submit{width:100%;padding:14px;background:linear-gradient(135deg,var(--navy),var(--navy2));border:none;border-radius:12px;font-family:var(--font);font-size:15px;font-weight:600;color:var(--white);cursor:pointer;transition:all 0.2s;margin-top:8px}
+    .btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(15,35,64,0.25)}
+
+    /* ── FOOTER ── */
+    footer{background:var(--navy);padding:56px 48px 36px;position:relative;overflow:hidden}
+    footer::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(244,200,66,0.3),transparent)}
+    .footer-top{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:48px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:28px}
+    .footer-logo{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    .footer-brand{font-size:15px;font-weight:600;color:var(--white);display:block}
+    .footer-tag{font-size:11px;color:rgba(255,255,255,0.35);display:block;margin-top:2px}
+    .footer-desc{font-size:13px;color:rgba(255,255,255,0.35);line-height:1.7;max-width:260px}
+    .footer-col-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:rgba(255,255,255,0.3);margin-bottom:16px}
+    .footer-links{display:flex;flex-direction:column;gap:10px}
+    .footer-links a{font-size:13px;color:rgba(255,255,255,0.45);text-decoration:none;transition:color 0.2s}
+    .footer-links a:hover{color:rgba(255,255,255,0.85)}
+    .footer-bottom{display:flex;align-items:center;justify-content:space-between}
+    .footer-copy{font-size:12px;color:rgba(255,255,255,0.22)}
+    .footer-email{font-size:12px;color:rgba(255,255,255,0.35)}
+    .footer-email a{color:var(--gold);opacity:0.7;text-decoration:none}
+    .footer-email a:hover{opacity:1}
+
+    /* ── SCROLL REVEAL ── */
+    .reveal{opacity:0;transform:translateY(28px);transition:opacity 0.65s ease,transform 0.65s ease}
+    .reveal.visible{opacity:1;transform:translateY(0)}
+    .reveal-left{opacity:0;transform:translateX(-28px);transition:opacity 0.65s ease,transform 0.65s ease}
+    .reveal-left.visible{opacity:1;transform:translateX(0)}
+    .reveal-right{opacity:0;transform:translateX(28px);transition:opacity 0.65s ease,transform 0.65s ease}
+    .reveal-right.visible{opacity:1;transform:translateX(0)}
+    .d1{transition-delay:0.1s}.d2{transition-delay:0.2s}.d3{transition-delay:0.3s}
+  </style>
 </head>
 <body>
-<div class="cursor-glow" id="cursorGlow"></div>
+
+<!-- NAV -->
 <nav id="navbar">
   <a class="nav-logo" href="#">
-    <svg width="36" height="36" viewBox="0 0 100 100" fill="none"><rect width="100" height="100" rx="20" fill="#0f2340"/><path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.25"/><path d="M50 16 L74 26 L74 52 Q74 70 50 84 Q26 70 26 52 L26 26 Z" fill="white" opacity="0.06"/><rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/><text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text><circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.7"/><circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/><circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.7"/></svg>
+    <svg width="38" height="38" viewBox="0 0 100 100" fill="none">
+      <rect width="100" height="100" rx="20" fill="#0f2340"/>
+      <path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.25"/>
+      <path d="M50 16 L74 26 L74 52 Q74 70 50 84 Q26 70 26 52 L26 26 Z" fill="white" opacity="0.06"/>
+      <rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/>
+      <text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text>
+      <circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+      <circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/>
+      <circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+    </svg>
     <div><span class="nav-brand">Reliable Network</span><span class="nav-tag">reliablenetwork.net</span></div>
   </a>
   <ul class="nav-links">
@@ -22,76 +285,149 @@
     <li><a href="#contact">Contact</a></li>
   </ul>
   <div class="nav-cta">
-    <a href="#contact" class="btn-nav-outline">Get in touch</a>
-    <a href="portal.html" class="btn-nav-gold">Portal Login</a>
+    <a href="#contact" class="btn-outline-nav">Get in touch</a>
+    <a href="portal.html" class="btn-gold-nav">Portal Login</a>
   </div>
 </nav>
 
+<!-- HERO -->
 <section class="hero">
-  <div class="hero-canvas"><div class="hero-grid"></div><div class="hero-orb orb-1"></div><div class="hero-orb orb-2"></div><div class="hero-orb orb-3"></div></div>
-  <div class="hero-road"><div class="road-line"></div></div>
+  <div class="hero-bg">
+    <div class="hero-grid"></div>
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+  </div>
+
+  <!-- Animated truck driving in -->
+  <div class="truck-wrap" id="truckDrive">
+    <svg width="300" height="80" viewBox="0 0 300 80" fill="none">
+      <!-- Trailer -->
+      <rect x="60" y="10" width="230" height="48" rx="4" fill="#1a3560" stroke="#2e5090" stroke-width="1.5"/>
+      <line x1="120" y1="12" x2="120" y2="56" stroke="#254880" stroke-width="1"/>
+      <line x1="180" y1="12" x2="180" y2="56" stroke="#254880" stroke-width="1"/>
+      <line x1="240" y1="12" x2="240" y2="56" stroke="#254880" stroke-width="1"/>
+      <rect x="70" y="18" width="60" height="20" rx="2" fill="none" stroke="#f4c842" stroke-width="1" opacity="0.4"/>
+      <text x="100" y="32" font-family="Arial" font-size="8" fill="#f4c842" text-anchor="middle" opacity="0.7" font-weight="bold">RELIABLE NETWORK</text>
+      <!-- Cab -->
+      <rect x="8" y="16" width="56" height="42" rx="6" fill="#0f2340" stroke="#2e5090" stroke-width="1.5"/>
+      <rect x="14" y="20" width="36" height="22" rx="3" fill="#1e4a7a" opacity="0.8"/>
+      <rect x="16" y="22" width="32" height="18" rx="2" fill="#2a5f9e" opacity="0.6"/>
+      <rect x="8" y="44" width="12" height="6" rx="1" fill="#f4c842" opacity="0.9"/>
+      <!-- Exhaust -->
+      <rect x="52" y="4" width="5" height="14" rx="2" fill="#254880"/>
+      <!-- Wheels -->
+      <circle cx="28" cy="62" r="12" fill="#0a0f1a" stroke="#3a4a5a" stroke-width="2"/>
+      <circle cx="28" cy="62" r="6" fill="#1a2030" stroke="#2e3a4a" stroke-width="1.5"/>
+      <circle cx="28" cy="62" r="2" fill="#4a5a6a"/>
+      <circle cx="80" cy="62" r="12" fill="#0a0f1a" stroke="#3a4a5a" stroke-width="2"/>
+      <circle cx="80" cy="62" r="6" fill="#1a2030" stroke="#2e3a4a" stroke-width="1.5"/>
+      <circle cx="80" cy="62" r="2" fill="#4a5a6a"/>
+      <circle cx="110" cy="62" r="12" fill="#0a0f1a" stroke="#3a4a5a" stroke-width="2"/>
+      <circle cx="110" cy="62" r="6" fill="#1a2030" stroke="#2e3a4a" stroke-width="1.5"/>
+      <circle cx="110" cy="62" r="2" fill="#4a5a6a"/>
+      <circle cx="210" cy="62" r="12" fill="#0a0f1a" stroke="#3a4a5a" stroke-width="2"/>
+      <circle cx="210" cy="62" r="6" fill="#1a2030" stroke="#2e3a4a" stroke-width="1.5"/>
+      <circle cx="210" cy="62" r="2" fill="#4a5a6a"/>
+      <circle cx="245" cy="62" r="12" fill="#0a0f1a" stroke="#3a4a5a" stroke-width="2"/>
+      <circle cx="245" cy="62" r="6" fill="#1a2030" stroke="#2e3a4a" stroke-width="1.5"/>
+      <circle cx="245" cy="62" r="2" fill="#4a5a6a"/>
+    </svg>
+  </div>
+
+  <div class="hero-road">
+    <div class="road-surface">
+      <div class="road-line"></div>
+      <div class="road-line2"></div>
+    </div>
+  </div>
+
   <div class="hero-inner">
-    <div class="hero-left">
-      <div class="hero-eyebrow"><div class="eyebrow-pulse"></div>Florida-based · DOT Authorized Carrier</div>
+    <div>
+      <div class="hero-eyebrow"><div class="eyebrow-dot"></div>Florida-based · DOT Authorized Carrier</div>
       <h1 class="hero-title">Your load.<br><em>Our responsibility.</em></h1>
       <p class="hero-sub">Reliable Network is a carrier and dispatch company built on trust, transparency, and technology. We help owner operators thrive — and keep freight moving on time, every time.</p>
-      <div class="hero-actions">
-        <a href="#join" class="btn-primary-hero">Lease on with us <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-        <a href="#services" class="btn-secondary-hero">See what we offer</a>
+      <div class="hero-btns">
+        <a href="#join" class="btn-hero-primary">Lease on with us <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
+        <a href="#services" class="btn-hero-secondary">See what we offer</a>
       </div>
     </div>
+
     <div class="hero-right">
       <div style="position:relative">
-        <div class="float-badge float-badge-1"><div class="badge-dot green"></div>Load dispatched — Tampa → Atlanta</div>
+        <div class="float-badge fb1"><div class="badge-dot bd-green"></div>Load dispatched — Tampa → Atlanta</div>
         <div class="glass-card">
-          <div class="glass-card-header"><span class="glass-card-title">Live operations</span><div class="live-indicator"><div class="live-dot-green"></div>Live</div></div>
-          <div class="stat-row"><span class="stat-label">Active drivers</span><span class="stat-val">5</span></div>
-          <div class="stat-row"><span class="stat-label">Loads this month</span><span class="stat-val">23</span></div>
-          <div class="stat-row"><span class="stat-label">On-time delivery</span><span class="stat-val green">98.2%</span></div>
-          <div class="stat-row"><span class="stat-label">Driver commission kept</span><span class="stat-val gold">88%</span></div>
-          <div class="mini-grid">
-            <div class="mini-tile"><div class="mini-val gold">24/7</div><div class="mini-label">Dispatch support</div></div>
-            <div class="mini-tile"><div class="mini-val">FL</div><div class="mini-label">Home base</div></div>
+          <div class="gc-head"><span class="gc-title">Live operations</span><div class="live-pill"><div class="live-dot"></div>Live</div></div>
+          <div class="gc-row"><span class="gc-label">Active drivers</span><span class="gc-val">5</span></div>
+          <div class="gc-row"><span class="gc-label">Loads this month</span><span class="gc-val">23</span></div>
+          <div class="gc-row"><span class="gc-label">On-time delivery</span><span class="gc-val green">98.2%</span></div>
+          <div class="gc-row"><span class="gc-label">Driver commission kept</span><span class="gc-val gold">88%</span></div>
+          <div class="gc-mini">
+            <div class="gc-tile"><div class="gc-tile-val gold">24/7</div><div class="gc-tile-label">Dispatch support</div></div>
+            <div class="gc-tile"><div class="gc-tile-val">FL</div><div class="gc-tile-label">Home base</div></div>
           </div>
         </div>
-        <div class="float-badge float-badge-2"><div class="badge-dot gold"></div>Settlement processed — $3,080 paid</div>
+        <div class="float-badge fb2"><div class="badge-dot bd-gold"></div>Settlement processed — $3,080 paid</div>
       </div>
     </div>
   </div>
 </section>
 
-<div class="marquee-section">
+<!-- MARQUEE -->
+<div class="marquee">
   <div class="marquee-track">
-    <span class="marquee-item"><span class="marquee-dot"></span>Professional Dispatch</span><span class="marquee-item"><span class="marquee-dot"></span>Lease-On Program</span><span class="marquee-item"><span class="marquee-dot"></span>Open Road Fuel Card</span><span class="marquee-item"><span class="marquee-dot"></span>Weekly Settlements</span><span class="marquee-item"><span class="marquee-dot"></span>Compliance Tracking</span><span class="marquee-item"><span class="marquee-dot"></span>Real-Time Updates</span><span class="marquee-item"><span class="marquee-dot"></span>DOT Authorized</span><span class="marquee-item"><span class="marquee-dot"></span>Tampa, Florida</span>
-    <span class="marquee-item"><span class="marquee-dot"></span>Professional Dispatch</span><span class="marquee-item"><span class="marquee-dot"></span>Lease-On Program</span><span class="marquee-item"><span class="marquee-dot"></span>Open Road Fuel Card</span><span class="marquee-item"><span class="marquee-dot"></span>Weekly Settlements</span><span class="marquee-item"><span class="marquee-dot"></span>Compliance Tracking</span><span class="marquee-item"><span class="marquee-dot"></span>Real-Time Updates</span><span class="marquee-item"><span class="marquee-dot"></span>DOT Authorized</span><span class="marquee-item"><span class="marquee-dot"></span>Tampa, Florida</span>
+    <span class="marquee-item"><span class="mdot"></span>Professional Dispatch</span>
+    <span class="marquee-item"><span class="mdot"></span>Lease-On Program</span>
+    <span class="marquee-item"><span class="mdot"></span>Open Road Fuel Card</span>
+    <span class="marquee-item"><span class="mdot"></span>Weekly Settlements</span>
+    <span class="marquee-item"><span class="mdot"></span>Compliance Tracking</span>
+    <span class="marquee-item"><span class="mdot"></span>Real-Time Updates</span>
+    <span class="marquee-item"><span class="mdot"></span>DOT Authorized</span>
+    <span class="marquee-item"><span class="mdot"></span>Tampa, Florida</span>
+    <span class="marquee-item"><span class="mdot"></span>Professional Dispatch</span>
+    <span class="marquee-item"><span class="mdot"></span>Lease-On Program</span>
+    <span class="marquee-item"><span class="mdot"></span>Open Road Fuel Card</span>
+    <span class="marquee-item"><span class="mdot"></span>Weekly Settlements</span>
+    <span class="marquee-item"><span class="mdot"></span>Compliance Tracking</span>
+    <span class="marquee-item"><span class="mdot"></span>Real-Time Updates</span>
+    <span class="marquee-item"><span class="mdot"></span>DOT Authorized</span>
+    <span class="marquee-item"><span class="mdot"></span>Tampa, Florida</span>
   </div>
 </div>
 
+<!-- ABOUT -->
 <section class="about" id="about">
   <div class="container">
-    <div class="about-inner">
-      <div class="about-visual-wrap reveal-left">
-        <div class="about-bg-circle"></div>
-        <div class="about-logo-center">
-          <div class="about-logo-ring ring-2"></div>
-          <div class="about-logo-ring ring-1"></div>
-          <svg width="160" height="160" viewBox="0 0 100 100" fill="none"><rect width="100" height="100" rx="20" fill="#0f2340"/><path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.25"/><path d="M50 16 L74 26 L74 52 Q74 70 50 84 Q26 70 26 52 L26 26 Z" fill="white" opacity="0.06"/><rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/><text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text><circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.7"/><circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/><circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.7"/></svg>
-        </div>
+    <div class="about-grid">
+      <div class="about-visual reveal-left">
+        <div class="about-ring ring2"></div>
+        <div class="about-ring ring1"></div>
+        <svg width="160" height="160" viewBox="0 0 100 100" fill="none">
+          <rect width="100" height="100" rx="20" fill="#0f2340"/>
+          <path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.2" opacity="0.25"/>
+          <path d="M50 16 L74 26 L74 52 Q74 70 50 84 Q26 70 26 52 L26 26 Z" fill="white" opacity="0.06"/>
+          <rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/>
+          <text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text>
+          <circle cx="42" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+          <circle cx="50" cy="90" r="2" fill="white" opacity="0.4"/>
+          <circle cx="58" cy="88" r="2" fill="#f4c842" opacity="0.7"/>
+        </svg>
       </div>
       <div class="reveal-right">
         <div class="eyebrow">About us</div>
         <h2 class="section-title">Built by a dispatcher,<br>for owner operators.</h2>
-        <p class="section-sub" style="margin-bottom:32px">Reliable Network was founded with one clear purpose — give owner operators the support, technology, and transparency they deserve. We handle the back office so you can focus on the road.</p>
+        <p class="section-sub" style="margin-bottom:32px">Reliable Network was founded with one clear purpose — give owner operators the support, technology, and transparency they deserve. We handle the back office so you focus on the road.</p>
         <div class="about-points">
-          <div class="about-point reveal delay-1"><div class="ap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="ap-title">DOT Authorized & Fully Compliant</div><div class="ap-text">Operating under our own authority with all federal and state requirements met.</div></div></div>
-          <div class="about-point reveal delay-2"><div class="ap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="ap-title">Technology-First Dispatch</div><div class="ap-text">Our proprietary operations portal automates load booking, settlements, and compliance.</div></div></div>
-          <div class="about-point reveal delay-3"><div class="ap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="ap-title">Driver-First Culture</div><div class="ap-text">Transparent pay, fuel benefits, and real human support on every load.</div></div></div>
+          <div class="about-point reveal d1"><div class="ap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="ap-title">DOT Authorized & Fully Compliant</div><div class="ap-text">Operating under our own authority with all federal and state requirements met.</div></div></div>
+          <div class="about-point reveal d2"><div class="ap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="ap-title">Technology-First Dispatch</div><div class="ap-text">Our proprietary portal automates load booking, settlements, and compliance tracking.</div></div></div>
+          <div class="about-point reveal d3"><div class="ap-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="ap-title">Driver-First Culture</div><div class="ap-text">Transparent pay, fuel benefits, and real human support on every single load.</div></div></div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
+<!-- STATS -->
 <section class="stats">
   <div class="container">
     <div class="stats-grid reveal">
@@ -103,61 +439,72 @@
   </div>
 </section>
 
+<!-- SERVICES -->
 <section class="services" id="services">
   <div class="container">
-    <div class="services-head reveal"><div class="eyebrow" style="justify-content:center"><span>What we offer</span></div><h2 class="section-title">Everything you need<br>to run your truck.</h2><p class="section-sub" style="margin:0 auto">From load booking to settlements, fuel cards to compliance — we handle the business side so you can focus on driving.</p></div>
-    <div class="services-grid">
-      <div class="svc-card reveal delay-1"><div class="svc-card-accent"></div><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><div class="svc-title">Professional Dispatch</div><div class="svc-text">We find the best loads, negotiate rates, and handle all broker communication. You drive — we do the rest.</div><span class="svc-tag">For owner operators</span></div>
-      <div class="svc-card reveal delay-2"><div class="svc-card-accent"></div><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="svc-title">Lease-On Program</div><div class="svc-text">Operate under our authority with full DOT coverage, insurance support, and premium freight access.</div><span class="svc-tag">For owner operators</span></div>
-      <div class="svc-card reveal delay-3"><div class="svc-card-accent"></div><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="svc-title">Fuel Card Benefits</div><div class="svc-text">Save 30 cents per gallon through our Open Road fuel card program at thousands of truck stops nationwide.</div><span class="svc-tag">For drivers</span></div>
-      <div class="svc-card reveal delay-1"><div class="svc-card-accent"></div><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="svc-title">Weekly Settlements</div><div class="svc-text">Transparent, itemized pay statements every week. See exactly what you earned and what hits your account.</div><span class="svc-tag">For drivers</span></div>
-      <div class="svc-card reveal delay-2"><div class="svc-card-accent"></div><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="svc-title">Compliance Management</div><div class="svc-text">We track CDL, medical cards, inspections, and insurance — and alert you before anything lapses.</div><span class="svc-tag">For all drivers</span></div>
-      <div class="svc-card reveal delay-3"><div class="svc-card-accent"></div><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="svc-title">Real-Time Updates</div><div class="svc-text">Instant load notifications via WhatsApp or email. Brokers get automated status updates — no calls needed.</div><span class="svc-tag">For brokers and drivers</span></div>
+    <div class="services-head reveal">
+      <div class="eyebrow">What we offer</div>
+      <h2 class="section-title">Everything you need<br>to run your truck.</h2>
+      <p class="section-sub">From load booking to settlements, fuel cards to compliance — we handle the business side so you can focus on driving.</p>
+    </div>
+    <div class="svc-grid">
+      <div class="svc-card reveal d1"><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><div class="svc-title">Professional Dispatch</div><div class="svc-text">We find the best loads, negotiate rates, and handle all broker communication. You drive — we do the rest.</div><span class="svc-tag">Owner operators</span></div>
+      <div class="svc-card reveal d2"><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="svc-title">Lease-On Program</div><div class="svc-text">Operate under our authority with full DOT coverage, insurance support, and access to premium freight.</div><span class="svc-tag">Owner operators</span></div>
+      <div class="svc-card reveal d3"><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="svc-title">Fuel Card Benefits</div><div class="svc-text">Save 30 cents per gallon through our Open Road fuel card program at thousands of truck stops nationwide.</div><span class="svc-tag">All drivers</span></div>
+      <div class="svc-card reveal d1"><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="svc-title">Weekly Settlements</div><div class="svc-text">Transparent, itemized pay statements every week. See exactly what you earned and what hits your account.</div><span class="svc-tag">All drivers</span></div>
+      <div class="svc-card reveal d2"><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="svc-title">Compliance Management</div><div class="svc-text">We track CDL, medical cards, inspections, and insurance — and alert you before anything lapses.</div><span class="svc-tag">All drivers</span></div>
+      <div class="svc-card reveal d3"><div class="svc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="svc-title">Real-Time Updates</div><div class="svc-text">Instant load notifications via WhatsApp or email. Brokers get automated status updates on every load.</div><span class="svc-tag">Brokers and drivers</span></div>
     </div>
   </div>
 </section>
 
+<!-- JOIN -->
 <section class="join" id="join">
   <div class="container">
-    <div class="join-head reveal"><div class="eyebrow" style="justify-content:center"><span>Join Reliable Network</span></div><h2 class="section-title">Ready to work with<br>the right team?</h2><p class="section-sub" style="margin:0 auto">Whether you are an owner operator looking to lease on or a broker with freight to move — we are ready.</p></div>
+    <div class="join-head reveal">
+      <div class="eyebrow">Join Reliable Network</div>
+      <h2 class="section-title">Ready to work with<br>the right team?</h2>
+      <p class="section-sub">Whether you are an owner operator looking to lease on or a broker with freight to move — we are ready for you.</p>
+    </div>
     <div class="join-grid">
-      <div class="join-card dark reveal delay-1">
-        <span class="jc-tag">Owner Operators</span>
-        <h3 class="jc-title">Lease on with Reliable Network</h3>
-        <p class="jc-text">Run under our authority, access premium freight, and let us handle the business while you focus on the miles.</p>
+      <div class="join-card join-dark reveal d1">
+        <span class="jc-tag jc-tag-dark">Owner Operators</span>
+        <h3 class="jc-title jc-title-dark">Lease on with Reliable Network</h3>
+        <p class="jc-text jc-text-dark">Run under our authority, access premium freight, and let us handle the business while you focus on the miles.</p>
         <div class="jc-perks">
-          <div class="jc-perk"><div class="perk-check dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Operate under our DOT authority</div>
-          <div class="jc-perk"><div class="perk-check dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Open Road fuel card — save 30 cents per gallon</div>
-          <div class="jc-perk"><div class="perk-check dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Weekly transparent settlements</div>
-          <div class="jc-perk"><div class="perk-check dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>24/7 dispatch and broker support</div>
-          <div class="jc-perk"><div class="perk-check dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>No hidden fees — ever</div>
+          <div class="jc-perk jc-perk-dark"><div class="perk-check pc-dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Operate under our DOT authority</div>
+          <div class="jc-perk jc-perk-dark"><div class="perk-check pc-dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Open Road fuel card — 30 cents per gallon savings</div>
+          <div class="jc-perk jc-perk-dark"><div class="perk-check pc-dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Weekly transparent settlements</div>
+          <div class="jc-perk jc-perk-dark"><div class="perk-check pc-dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>24/7 dispatch and broker support</div>
+          <div class="jc-perk jc-perk-dark"><div class="perk-check pc-dark"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4c842" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>No hidden fees — ever</div>
         </div>
-        <a href="#contact" class="jc-btn gold">Apply to lease on</a>
+        <a href="#contact" class="jc-btn jc-btn-gold">Apply to lease on →</a>
       </div>
-      <div class="join-card light reveal delay-2">
-        <span class="jc-tag light-tag">Brokers and Shippers</span>
-        <h3 class="jc-title light-title">Need a reliable carrier partner?</h3>
-        <p class="jc-text light-text">Work with a carrier that answers the phone, delivers on time, and keeps you updated every step of the way.</p>
+      <div class="join-card join-light reveal d2">
+        <span class="jc-tag jc-tag-light">Brokers and Shippers</span>
+        <h3 class="jc-title jc-title-light">Need a reliable carrier partner?</h3>
+        <p class="jc-text jc-text-light">Work with a carrier that answers the phone, delivers on time, and keeps you updated every step of the way.</p>
         <div class="jc-perks">
-          <div class="jc-perk light-perk"><div class="perk-check light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Real-time load status updates</div>
-          <div class="jc-perk light-perk"><div class="perk-check light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>98% on-time delivery rate</div>
-          <div class="jc-perk light-perk"><div class="perk-check light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Fast rate confirmation response</div>
-          <div class="jc-perk light-perk"><div class="perk-check light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Insured and compliant fleet</div>
-          <div class="jc-perk light-perk"><div class="perk-check light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>POD and documentation on delivery</div>
+          <div class="jc-perk jc-perk-light"><div class="perk-check pc-light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Real-time load status updates</div>
+          <div class="jc-perk jc-perk-light"><div class="perk-check pc-light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>98% on-time delivery rate</div>
+          <div class="jc-perk jc-perk-light"><div class="perk-check pc-light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Fast rate confirmation response</div>
+          <div class="jc-perk jc-perk-light"><div class="perk-check pc-light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>Insured and compliant fleet</div>
+          <div class="jc-perk jc-perk-light"><div class="perk-check pc-light"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>POD and documentation on delivery</div>
         </div>
-        <a href="#contact" class="jc-btn navy">Work with us</a>
+        <a href="#contact" class="jc-btn jc-btn-navy">Work with us →</a>
       </div>
     </div>
   </div>
 </section>
 
+<!-- CONTACT -->
 <section class="contact" id="contact">
   <div class="container">
-    <div class="contact-inner">
+    <div class="contact-grid">
       <div class="reveal-left">
         <div class="eyebrow">Contact</div>
-        <h2 class="contact-left-title">Let us start a conversation.</h2>
-        <p class="contact-left-sub">Whether you are ready to lease on, have a load to move, or just want to learn more — we respond fast.</p>
+        <h2 class="contact-title">Let us start a conversation.</h2>
+        <p class="contact-sub">Whether you are ready to lease on, have a load to move, or just want to learn more — we respond fast.</p>
         <div class="contact-details">
           <div class="cd"><div class="cd-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="cd-lbl">Email us</div><div class="cd-val">ops@reliablenetwork.net</div></div></div>
           <div class="cd"><div class="cd-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div><div class="cd-lbl">Based in</div><div class="cd-val">Tampa, Florida</div></div></div>
@@ -176,17 +523,21 @@
           <div class="cf-group full"><label class="cf-label">I am a...</label><select class="cf-select" name="type" required><option>Owner operator looking to lease on</option><option>Broker with a load to move</option><option>Shipper looking for a carrier</option><option>Other</option></select></div>
           <div class="cf-group full"><label class="cf-label">Message</label><textarea class="cf-input" name="message" rows="4" placeholder="Tell us a bit about what you are looking for..." required></textarea></div>
         </div>
-        <button class="btn-submit" type="submit">Send message</button>
+        <button class="btn-submit" type="submit">Send message →</button>
       </form>
     </div>
   </div>
 </section>
 
+<!-- FOOTER -->
 <footer>
   <div class="container">
     <div class="footer-top">
-      <div class="footer-brand-col">
-        <div class="footer-logo"><svg width="32" height="32" viewBox="0 0 100 100" fill="none"><rect width="100" height="100" rx="20" fill="rgba(255,255,255,0.08)"/><path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.5" opacity="0.3"/><rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/><text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text></svg><div><span class="footer-brand">Reliable Network</span><span class="footer-tag">Your load. Our responsibility.</span></div></div>
+      <div>
+        <div class="footer-logo">
+          <svg width="32" height="32" viewBox="0 0 100 100" fill="none"><rect width="100" height="100" rx="20" fill="rgba(255,255,255,0.08)"/><path d="M50 8 L80 20 L80 54 Q80 76 50 92 Q20 76 20 54 L20 20 Z" fill="none" stroke="white" stroke-width="1.5" opacity="0.3"/><rect x="38" y="20" width="24" height="2.5" rx="1.25" fill="#f4c842" opacity="0.9"/><text x="50" y="62" font-family="DM Sans,sans-serif" font-size="32" font-weight="500" fill="white" text-anchor="middle" letter-spacing="2">RN</text></svg>
+          <div><span class="footer-brand">Reliable Network</span><span class="footer-tag">Your load. Our responsibility.</span></div>
+        </div>
         <p class="footer-desc">A Florida-based carrier and dispatch company committed to helping owner operators succeed on the road.</p>
       </div>
       <div><div class="footer-col-title">Company</div><div class="footer-links"><a href="#about">About us</a><a href="#services">Services</a><a href="#join">Join us</a><a href="#contact">Contact</a></div></div>
@@ -200,9 +551,12 @@
 </footer>
 
 <script>
-  document.addEventListener('mousemove', e => { const g = document.getElementById('cursorGlow'); g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px'; });
-  window.addEventListener('scroll', () => { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 40); });
-  const obs = new IntersectionObserver((entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 40);
+  });
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
   document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => obs.observe(el));
 </script>
 </body>
