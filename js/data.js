@@ -1,7 +1,7 @@
 // ── Reliable Network — Google Sheets Data Layer ──
 // All data syncs to Google Sheets in real time
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwTf8bbXtW4a6y6PXtR2BgcATMTUIEwEYd90awF_VCZSEYj5XEE8306C806Elj4j4Hh-Q/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbw-DoFci-uElodyBUxc71xll6UtXechMgMshUbQGm0BYwlLji8LWE9XU3Mev-_z_LjkvQ/exec';
 
 // ── Cache layer — keeps UI fast while syncing to Sheets ──
 const Cache = {
