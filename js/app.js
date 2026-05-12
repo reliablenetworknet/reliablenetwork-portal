@@ -35,7 +35,7 @@ function navigate(pageId, el) {
   const [title, sub] = pageTitles[pageId] || [pageId, ''];
   document.getElementById('pageTitle').textContent = title;
   document.getElementById('pageSub').textContent = sub;
-  const renders = { dashboard: renderDashboard, loads: renderLoads, dispatch: renderDispatch, drivers: renderDrivers, trucks: renderTrucks, financials: renderFinancials, compliance: renderCompliance };
+  const renders = { dashboard: renderDashboard, loads: renderLoads, dispatch: renderDispatch, drivers: renderDrivers, trucks: renderTrucks, financials: renderFinancials, compliance: renderCompliance, notifications: renderNotifications };
   if (renders[pageId]) renders[pageId]();
 }
 
@@ -798,4 +798,253 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('toast-show');
   setTimeout(() => toast.classList.remove('toast-show'), 3000);
+}
+
+// ── NOTIFICATIONS MODULE ──
+
+// Add to pageTitles
+pageTitles['notifications'] = ['Notifications', 'Send load details to drivers and brokers'];
+
+function renderNotifications() {
+  // Populate load selector
+  const loads = DB.get('loads');
+  const sel = document.getElementById('notif-load-select');
+  sel.innerHTML = '<option value="">— Choose a load —</option>';
+  loads.forEach(l => {
+    sel.add(new Option(`${l.id} — ${l.origin} → ${l.dest} — ${l.driverName}`, l.id));
+  });
+}
+
+function onNotifLoadSelect() {
+  const id = document.getElementById('notif-load-select').value;
+  if (!id) {
+    document.getElementById('notif-load-info').style.display = 'none';
+    document.getElementById('notif-load-badge').textContent = 'No load selected';
+    return;
+  }
+
+  const loads = DB.get('loads');
+  const drivers = DB.get('drivers');
+  const l = loads.find(x => x.id === id);
+  if (!l) return;
+
+  const driver = drivers.find(d => d.id === l.driverId) || {};
+
+  // Show load info bar
+  document.getElementById('notif-load-info').style.display = 'block';
+  document.getElementById('notif-load-badge').textContent = l.id + ' — ' + l.status;
+  document.getElementById('ni-driver').textContent = l.driverName;
+  document.getElementById('ni-route').textContent = l.origin + ' → ' + l.dest;
+  document.getElementById('ni-broker').textContent = l.broker || '—';
+  document.getElementById('ni-rate').textContent = fmt(l.gross);
+
+  // Pre-fill driver contact info
+  if (driver.phone) document.getElementById('driver-wa-number').value = driver.phone;
+  if (driver.email) document.getElementById('driver-email').value = driver.email;
+
+  // Build WhatsApp message
+  const wa = `🚛 *RELIABLE NETWORK — New Load Assigned*
+
+📋 Load ID: ${l.id}
+👤 Driver: ${l.driverName}
+🚛 Truck: ${l.truckId || 'TBD'}
+
+📍 *PICKUP*
+📌 ${l.origin}
+📅 Date: ${l.date}
+${l.broker ? '📞 Broker: ' + l.broker : ''}
+
+🏁 *DELIVERY*
+📌 ${l.dest}
+
+💵 Rate: ${fmt(l.gross)}
+${l.notes ? '⚠️ Notes: ' + l.notes : ''}
+
+Please reply *CONFIRM* when you are loaded ✅
+
+— Reliable Network Dispatch
+📧 ops@reliablenetwork.net`;
+
+  document.getElementById('wa-preview').value = wa;
+
+  // Build driver email
+  document.getElementById('driver-email-subject').value = `🚛 New Load — ${l.id} | ${l.origin} → ${l.dest} | ${fmt(l.gross)}`;
+
+  const emailBody = `Hi ${l.driverName.split(' ')[0]},
+
+You have been assigned a new load. Please review the details below and confirm.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LOAD DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Load ID:      ${l.id}
+Date:         ${l.date}
+Broker:       ${l.broker || 'N/A'}
+Gross Rate:   ${fmt(l.gross)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PICKUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Location:     ${l.origin}
+Date:         ${l.date}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DELIVERY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Location:     ${l.dest}
+
+${l.notes ? '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSPECIAL INSTRUCTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' + l.notes : ''}
+
+Please reply to confirm you have received this load.
+
+— Reliable Network Operations
+ops@reliablenetwork.net | 24/7 Dispatch`;
+
+  document.getElementById('driver-email-body').value = emailBody;
+
+  // Build default broker template
+  buildBrokerTemplate('en_route', l);
+}
+
+// ── Broker templates ──
+const brokerTemplates = {
+  en_route: (l) => `Hi ${l.broker || 'Team'},
+
+Update for load ${l.id}.
+
+Driver ${l.driverName} is currently en route to the pickup location in ${l.origin}.
+
+Estimated arrival at shipper: Within 2 hours.
+
+Please let us know if you need anything further.
+
+— Reliable Network
+ops@reliablenetwork.net | 24/7 Dispatch`,
+
+  loaded: (l) => `Hi ${l.broker || 'Team'},
+
+Load ${l.id} update — driver is loaded and departed.
+
+Driver:       ${l.driverName}
+Departed:     ${l.origin}
+Destination:  ${l.dest}
+
+We will keep you updated on progress.
+
+— Reliable Network
+ops@reliablenetwork.net | 24/7 Dispatch`,
+
+  in_transit: (l) => `Hi ${l.broker || 'Team'},
+
+In-transit update for load ${l.id}.
+
+Driver:       ${l.driverName}
+Destination:  ${l.dest}
+Status:       On schedule
+
+We will notify you upon delivery.
+
+— Reliable Network
+ops@reliablenetwork.net | 24/7 Dispatch`,
+
+  delay: (l) => `Hi ${l.broker || 'Team'},
+
+Proactive notification of a delay on load ${l.id}.
+
+Driver:         ${l.driverName}
+Reason:         [Please specify reason]
+Original ETA:   [Original time]
+Updated ETA:    [New time]
+
+We apologize for any inconvenience and will keep you updated.
+
+— Reliable Network
+ops@reliablenetwork.net | 24/7 Dispatch`,
+
+  delivered: (l) => `Hi ${l.broker || 'Team'},
+
+Load ${l.id} has been delivered successfully.
+
+Driver:       ${l.driverName}
+Delivered to: ${l.dest}
+Date:         ${new Date().toLocaleDateString('en-US')}
+
+POD is available upon request.
+
+Thank you for the business!
+
+— Reliable Network
+ops@reliablenetwork.net | 24/7 Dispatch`,
+
+  pod: (l) => `Hi ${l.broker || 'Team'},
+
+Proof of delivery for load ${l.id} is now available.
+
+Driver:   ${l.driverName}
+Route:    ${l.origin} → ${l.dest}
+Status:   Delivered ✓
+
+Please confirm receipt and let us know if anything else is needed.
+
+— Reliable Network
+ops@reliablenetwork.net | 24/7 Dispatch`
+};
+
+function buildBrokerTemplate(key, load) {
+  if (!load) {
+    const id = document.getElementById('notif-load-select').value;
+    const loads = DB.get('loads');
+    load = loads.find(x => x.id === id);
+    if (!load) return;
+  }
+  document.getElementById('broker-preview').value = brokerTemplates[key](load);
+}
+
+function selectBrokerTmpl(el, key) {
+  document.querySelectorAll('.broker-tmpl').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('broker-tmpl-title').textContent = el.querySelector('.bt-name').textContent;
+  buildBrokerTemplate(key, null);
+}
+
+// ── Send functions ──
+function sendWhatsApp() {
+  const num = document.getElementById('driver-wa-number').value.replace(/\D/g, '');
+  const msg = document.getElementById('wa-preview').value;
+  if (!num) { showToast('Please enter driver WhatsApp number'); return; }
+  if (!msg) { showToast('Please select a load first'); return; }
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+  showToast('Opening WhatsApp...');
+}
+
+function sendDriverEmail() {
+  const to = document.getElementById('driver-email').value;
+  const subject = document.getElementById('driver-email-subject').value;
+  const body = document.getElementById('driver-email-body').value;
+  if (!to) { showToast('Please enter driver email'); return; }
+  window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  showToast('Opening email client...');
+}
+
+function sendBrokerUpdate() {
+  const to = document.getElementById('broker-email-to').value;
+  const subject = document.getElementById('broker-tmpl-title').textContent;
+  const body = document.getElementById('broker-preview').value;
+  const id = document.getElementById('notif-load-select').value;
+  if (!to) { showToast('Please enter broker email'); return; }
+  window.open(`mailto:${to}?subject=${encodeURIComponent('Load ' + id + ' Update — ' + subject)}&body=${encodeURIComponent(body)}`);
+  showToast('Opening email client...');
+}
+
+function copyNotif(id) {
+  const text = document.getElementById(id).value;
+  navigator.clipboard.writeText(text).catch(() => {});
+  showToast('Copied to clipboard');
+}
+
+function showNotifTab(name, el) {
+  document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.notif-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('notif-' + name).classList.add('active');
+  el.classList.add('active');
 }

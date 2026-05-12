@@ -327,7 +327,139 @@
       </div>
     </div>
 
-  </main>
+  
+    <!-- NOTIFICATIONS -->
+    <div id="page-notifications" class="page">
+
+      <!-- Load Selector -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <span class="card-title">Select a load to notify</span>
+          <span class="card-badge" id="notif-load-badge">No load selected</span>
+        </div>
+        <div style="padding:16px">
+          <select class="filter-sel" id="notif-load-select" onchange="onNotifLoadSelect()" style="width:100%;padding:10px 14px;font-size:14px">
+            <option value="">— Choose a load —</option>
+          </select>
+        </div>
+        <div id="notif-load-info" style="display:none;padding:0 16px 16px">
+          <div style="background:var(--gray-50);border-radius:var(--radius);padding:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:13px">
+            <div><div style="color:var(--gray-400);font-size:11px;margin-bottom:3px">DRIVER</div><div id="ni-driver" style="font-weight:500;color:var(--navy)"></div></div>
+            <div><div style="color:var(--gray-400);font-size:11px;margin-bottom:3px">ROUTE</div><div id="ni-route" style="font-weight:500;color:var(--navy)"></div></div>
+            <div><div style="color:var(--gray-400);font-size:11px;margin-bottom:3px">BROKER</div><div id="ni-broker" style="font-weight:500;color:var(--navy)"></div></div>
+            <div><div style="color:var(--gray-400);font-size:11px;margin-bottom:3px">RATE</div><div id="ni-rate" style="font-weight:500;color:var(--green)"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="notif-tabs">
+        <button class="notif-tab active" onclick="showNotifTab('driver',this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07"/><path d="M2 2l20 20"/></svg>
+          Driver — WhatsApp & Email
+        </button>
+        <button class="notif-tab" onclick="showNotifTab('broker',this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+          Broker Updates
+        </button>
+        <button class="notif-tab" onclick="showNotifTab('reminders',this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Reminders
+        </button>
+      </div>
+
+      <!-- DRIVER TAB -->
+      <div class="notif-panel active" id="notif-driver">
+        <!-- WhatsApp -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-head">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;background:#dcfce7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px">💬</div>
+              <div><div class="card-title">WhatsApp Message</div><div style="font-size:11px;color:var(--gray-400)">Opens WhatsApp with message pre-filled</div></div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="copyNotif('wa-preview')">Copy</button>
+              <button class="btn btn-primary btn-sm" onclick="sendWhatsApp()">💬 Send WhatsApp</button>
+            </div>
+          </div>
+          <div style="padding:16px">
+            <div style="margin-bottom:10px">
+              <label class="fl" style="margin-bottom:4px;display:block">Driver WhatsApp number</label>
+              <input class="fi" id="driver-wa-number" placeholder="+1 813 555 0101" style="max-width:240px">
+            </div>
+            <textarea class="fi" id="wa-preview" rows="12" style="font-family:var(--mono);font-size:12px;line-height:1.7"></textarea>
+          </div>
+        </div>
+        <!-- Email -->
+        <div class="card">
+          <div class="card-head">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;background:#dbeafe;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px">✉️</div>
+              <div><div class="card-title">Email to Driver</div><div style="font-size:11px;color:var(--gray-400)">Full load details with pickup & delivery info</div></div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="sendDriverEmail()">✉️ Send Email</button>
+          </div>
+          <div style="padding:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+              <div><label class="fl" style="margin-bottom:4px;display:block">To</label><input class="fi" id="driver-email" placeholder="driver@email.com"></div>
+              <div><label class="fl" style="margin-bottom:4px;display:block">Subject</label><input class="fi" id="driver-email-subject" placeholder="New Load Assignment"></div>
+            </div>
+            <textarea class="fi" id="driver-email-body" rows="14" style="font-size:12px;line-height:1.7"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- BROKER TAB -->
+      <div class="notif-panel" id="notif-broker">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+          <div class="broker-tmpl active" onclick="selectBrokerTmpl(this,'en_route')"><div class="bt-name">🚗 En route to pickup</div><div class="bt-desc">Driver heading to shipper</div></div>
+          <div class="broker-tmpl" onclick="selectBrokerTmpl(this,'loaded')"><div class="bt-name">📦 Loaded & departed</div><div class="bt-desc">Freight picked up, moving</div></div>
+          <div class="broker-tmpl" onclick="selectBrokerTmpl(this,'in_transit')"><div class="bt-name">🛣️ In transit update</div><div class="bt-desc">Mid-route check-in</div></div>
+          <div class="broker-tmpl" onclick="selectBrokerTmpl(this,'delay')"><div class="bt-name">⚠️ Delay notice</div><div class="bt-desc">ETA update or issue</div></div>
+          <div class="broker-tmpl" onclick="selectBrokerTmpl(this,'delivered')"><div class="bt-name">✅ Delivered</div><div class="bt-desc">Load complete, POD ready</div></div>
+          <div class="broker-tmpl" onclick="selectBrokerTmpl(this,'pod')"><div class="bt-name">📄 POD confirmation</div><div class="bt-desc">Proof of delivery sent</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;background:#fef3c7;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px">📋</div>
+              <div><div class="card-title" id="broker-tmpl-title">En route to pickup</div><div style="font-size:11px;color:var(--gray-400)" id="broker-to-label">To: broker email on file</div></div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="copyNotif('broker-preview')">Copy</button>
+              <button class="btn btn-primary btn-sm" onclick="sendBrokerUpdate()">✉️ Send to broker</button>
+            </div>
+          </div>
+          <div style="padding:16px">
+            <div style="margin-bottom:10px">
+              <label class="fl" style="margin-bottom:4px;display:block">Broker email</label>
+              <input class="fi" id="broker-email-to" placeholder="broker@company.com" style="max-width:280px">
+            </div>
+            <textarea class="fi" id="broker-preview" rows="12" style="font-size:12px;line-height:1.7"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- REMINDERS TAB -->
+      <div class="notif-panel" id="notif-reminders">
+        <div class="card">
+          <div class="card-head"><span class="card-title">Automatic reminders</span><span style="font-size:12px;color:var(--gray-400)">Sent to driver via WhatsApp</span></div>
+          <div style="padding:8px 0">
+            <div class="reminder-row"><div style="display:flex;align-items:center;gap:12px"><div class="rem-ico">⏰</div><div><div class="rem-title">Check-in reminder</div><div class="rem-sub">1 hour before pickup time</div></div></div><button class="toggle-btn on" onclick="this.classList.toggle('on')"></button></div>
+            <div class="reminder-row"><div style="display:flex;align-items:center;gap:12px"><div class="rem-ico">📍</div><div><div class="rem-title">Pickup confirmation</div><div class="rem-sub">Driver replies CONFIRM when loaded</div></div></div><button class="toggle-btn on" onclick="this.classList.toggle('on')"></button></div>
+            <div class="reminder-row"><div style="display:flex;align-items:center;gap:12px"><div class="rem-ico">🛣️</div><div><div class="rem-title">Mid-route check-in</div><div class="rem-sub">Sent at halfway point of trip</div></div></div><button class="toggle-btn on" onclick="this.classList.toggle('on')"></button></div>
+            <div class="reminder-row"><div style="display:flex;align-items:center;gap:12px"><div class="rem-ico">🏁</div><div><div class="rem-title">Pre-delivery reminder</div><div class="rem-sub">2 hours before delivery ETA</div></div></div><button class="toggle-btn on" onclick="this.classList.toggle('on')"></button></div>
+            <div class="reminder-row"><div style="display:flex;align-items:center;gap:12px"><div class="rem-ico">✅</div><div><div class="rem-title">Delivery confirmation</div><div class="rem-sub">Driver confirms when delivered + POD</div></div></div><button class="toggle-btn on" onclick="this.classList.toggle('on')"></button></div>
+            <div class="reminder-row" style="border-bottom:none"><div style="display:flex;align-items:center;gap:12px"><div class="rem-ico">📄</div><div><div class="rem-title">POD upload reminder</div><div class="rem-sub">If no POD received 1hr after delivery</div></div></div><button class="toggle-btn on" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+        </div>
+        <div style="margin-top:14px;padding:14px;background:var(--gray-50);border-radius:var(--radius);font-size:12px;color:var(--gray-400);border:1px solid var(--gray-200)">
+          ℹ️ Reminders are sent via WhatsApp to the driver number on file. Times are based on pickup/delivery dates entered in the load form.
+        </div>
+      </div>
+    </div>
+
+</main>
 </div>
 
 <script src="js/data.js"></script>
