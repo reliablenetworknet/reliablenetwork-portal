@@ -354,6 +354,7 @@
       .stat-num { font-size: 34px; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -618,7 +619,9 @@
 
 
 
-  // Contact form — Google Apps Script (no Netlify quota)
+  // ── EmailJS Contact Form ──
+  emailjs.init('BQF-IpFGhOy_MrBIQ');
+
   async function submitForm(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
@@ -628,32 +631,25 @@
 
     const form = document.getElementById('contactForm');
 
-    // Use FormData with URLEncoded — most reliable for Apps Script
-    const params = new URLSearchParams({
-      'first-name': form.querySelector('[name="first-name"]').value,
-      'last-name':  form.querySelector('[name="last-name"]').value,
-      'email':      form.querySelector('[name="email"]').value,
-      'phone':      form.querySelector('[name="phone"]').value,
-      'type':       form.querySelector('[name="type"]').value,
-      'message':    form.querySelector('[name="message"]').value,
-    });
-
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-DoFci-uElodyBUxc71xll6UtXechMgMshUbQGm0BYwlLji8LWE9XU3Mev-_z_LjkvQ/exec';
+    const templateParams = {
+      from_name:  form.querySelector('[name="first-name"]').value + ' ' + form.querySelector('[name="last-name"]').value,
+      from_email: form.querySelector('[name="email"]').value,
+      phone:      form.querySelector('[name="phone"]').value,
+      type:       form.querySelector('[name="type"]').value,
+      message:    form.querySelector('[name="message"]').value,
+      to_email:   'ops@reliablenetwork.net'
+    };
 
     try {
-      // Use no-cors mode — Apps Script requires this from external sites
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString()
-      });
+      await emailjs.send('service_jf2d3wq', 'template_r7gh1vt', templateParams);
+      window.location.href = '/thank-you.html';
     } catch(err) {
-      console.log('Form submitted:', err);
+      console.error('EmailJS error:', err);
+      btn.textContent = 'Send message →';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      alert('There was an error sending your message. Please email us directly at ops@reliablenetwork.net');
     }
-
-    // Redirect to thank you page
-    window.location.href = '/thank-you.html';
   }
 
   // Contact form handler
