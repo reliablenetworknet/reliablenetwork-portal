@@ -618,7 +618,7 @@
 
 
 
-  // Contact form — direct to Google Apps Script (no Netlify quota)
+  // Contact form — Google Apps Script (no Netlify quota)
   async function submitForm(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
@@ -627,26 +627,32 @@
     btn.style.opacity = '0.7';
 
     const form = document.getElementById('contactForm');
-    const data = {
-      type: 'contact_form',
+
+    // Use FormData with URLEncoded — most reliable for Apps Script
+    const params = new URLSearchParams({
       'first-name': form.querySelector('[name="first-name"]').value,
-      'last-name': form.querySelector('[name="last-name"]').value,
-      email: form.querySelector('[name="email"]').value,
-      phone: form.querySelector('[name="phone"]').value,
-      type2: form.querySelector('[name="type"]').value,
-      message: form.querySelector('[name="message"]').value
-    };
+      'last-name':  form.querySelector('[name="last-name"]').value,
+      'email':      form.querySelector('[name="email"]').value,
+      'phone':      form.querySelector('[name="phone"]').value,
+      'type':       form.querySelector('[name="type"]').value,
+      'message':    form.querySelector('[name="message"]').value,
+    });
+
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-DoFci-uElodyBUxc71xll6UtXechMgMshUbQGm0BYwlLji8LWE9XU3Mev-_z_LjkvQ/exec';
 
     try {
-      await fetch('https://script.google.com/macros/s/AKfycbw-DoFci-uElodyBUxc71xll6UtXechMgMshUbQGm0BYwlLji8LWE9XU3Mev-_z_LjkvQ/exec', {
+      // Use no-cors mode — Apps Script requires this from external sites
+      await fetch(SCRIPT_URL, {
         method: 'POST',
-        body: JSON.stringify(data)
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
       });
     } catch(err) {
-      console.log('Submitted');
+      console.log('Form submitted:', err);
     }
 
-    // Always redirect to thank you page
+    // Redirect to thank you page
     window.location.href = '/thank-you.html';
   }
 
