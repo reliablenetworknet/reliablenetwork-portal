@@ -140,7 +140,7 @@ async function saveLoad() {
     net9: +(gross * 0.09).toFixed(2),
     broker: document.getElementById('f-broker').value,
     brokerLoad: document.getElementById('f-brokerLoad').value,
-    status: document.getElementById('f-status').value,
+    status: 'Pending',
     notes: document.getElementById('f-notes').value
   };
 
@@ -612,7 +612,7 @@ FIELD EXTRACTION RULES:
    - Shipment #, Shipment ID
    Use the FIRST number you find associated with any of these labels.
 
-2. "brokerName" — The freight broker or shipper company name at the top of the document.
+2. "brokerName" — The freight broker or shipper company name. This is usually the LARGEST or BOLDEST text at the very top of the document — the company header/letterhead. It is NOT the carrier name.
 
 3. "origin" — Pickup location. Look for: Pickup, Origin, Ship From, PU, Pick Up. Include city and state.
 
