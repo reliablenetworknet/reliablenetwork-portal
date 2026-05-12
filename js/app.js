@@ -598,7 +598,66 @@ async function dzParseWithAI(base64) {
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-            { type: 'text', text: 'You are parsing a trucking rate confirmation PDF. Extract all load details and return ONLY valid JSON with NO markdown or backticks. Use exactly these fields: {"brokerName":"","brokerLoadNum":"","origin":"","destination":"","pickupDate":"","grossRate":0,"miles":0,"commodity":"","equipment":"","notes":""}. If a field is not found use empty string or 0.' }
+            { type: 'text', text: `You are an expert at reading trucking rate confirmation PDFs. Extract the load details and return ONLY a valid JSON object — no markdown, no backticks, no explanation, nothing else.
+
+FIELD EXTRACTION RULES:
+
+1. "loadId" — This is the main load identifier used as the Load ID. Look for ANY of these labels:
+   - PO #, PO Number, Purchase Order
+   - Confirmation #, Confirmation Number, Conf #
+   - Load #, Load Number, Load ID
+   - Order #, Order Number
+   - Reference #, Ref #
+   - Pro #, Pro Number
+   - Shipment #, Shipment ID
+   Use the FIRST number you find associated with any of these labels.
+
+2. "brokerName" — The freight broker or shipper company name at the top of the document.
+
+3. "origin" — Pickup location. Look for: Pickup, Origin, Ship From, PU, Pick Up. Include city and state.
+
+4. "destination" — Delivery location. Look for: Delivery, Destination, Ship To, DEL, Consignee. Include city and state.
+
+5. "pickupDate" — Pickup date in YYYY-MM-DD format. Look for: Pickup Date, PU Date, Ship Date.
+
+6. "deliveryDate" — Delivery date in YYYY-MM-DD format. Look for: Delivery Date, DEL Date, Drop Date.
+
+7. "grossRate" — The carrier pay/rate amount as a NUMBER only (no $ sign). Look for: Rate, Total Rate, Carrier Rate, Carrier Pay, Line Haul, All-In Rate, Flat Rate, Total Amount. This is what Reliable Network gets paid for the load.
+
+8. "miles" — Total miles as a NUMBER only. Look for: Miles, Total Miles, Distance.
+
+9. "commodity" — What is being shipped. Look for: Commodity, Product, Description, Freight.
+
+10. "equipment" — Truck type needed. Look for: Equipment, Equipment Type, Mode, Service. Common values: Dry Van, Reefer, Flatbed, Step Deck.
+
+11. "brokerPhone" — Broker or dispatcher phone number.
+
+12. "brokerEmail" — Broker or dispatcher email address.
+
+13. "pickupAddress" — Full pickup address including street if available.
+
+14. "deliveryAddress" — Full delivery address including street if available.
+
+15. "notes" — Any special instructions, requirements, or notes.
+
+Return exactly this JSON structure:
+{
+  "brokerName": "",
+  "loadId": "",
+  "brokerPhone": "",
+  "brokerEmail": "",
+  "origin": "",
+  "pickupAddress": "",
+  "pickupDate": "",
+  "destination": "",
+  "deliveryAddress": "",
+  "deliveryDate": "",
+  "grossRate": 0,
+  "miles": 0,
+  "commodity": "",
+  "equipment": "",
+  "notes": ""
+}` }
           ]
         }]
       })
@@ -612,14 +671,19 @@ async function dzParseWithAI(base64) {
     dzFillForm({
       brokerName: 'Total Express Logistics',
       brokerLoadNum: 'TE-' + Math.floor(Math.random()*90000+10000),
+      brokerPhone: '800-555-0111',
+      brokerEmail: 'dispatch@totalexpress.com',
       origin: 'Tampa, FL',
-      destination: 'Atlanta, GA',
+      pickupAddress: '1234 Industrial Blvd, Tampa, FL 33601',
       pickupDate: new Date().toISOString().split('T')[0],
+      destination: 'Atlanta, GA',
+      deliveryAddress: '5678 Commerce Dr, Atlanta, GA 30301',
+      deliveryDate: new Date(Date.now()+86400000).toISOString().split('T')[0],
       grossRate: 3500,
       miles: 456,
       commodity: 'General Freight',
       equipment: "Dry Van 53'",
-      notes: 'No touch freight'
+      notes: 'No touch freight. Check in at gate B.'
     });
   }
 }
@@ -631,22 +695,47 @@ function dzFillForm(data) {
   document.getElementById('dzProcessing').style.display = 'none';
   document.getElementById('dzSuccess').style.display = 'flex';
 
-  // Fill all form fields and mark them as auto-filled
   const fill = (id, val) => {
     const el = document.getElementById(id);
-    if (el && val) { el.value = val; el.classList.add('auto-filled'); }
+    if (el && val && val !== '' && val !== 0) {
+      el.value = val;
+      el.classList.add('auto-filled');
+    }
   };
 
+  // Core load fields
   fill('f-broker', data.brokerName);
-  fill('f-brokerLoad', data.brokerLoadNum);
-  fill('f-origin', data.origin);
-  fill('f-dest', data.destination);
+  fill('f-loadId', data.loadId || data.brokerLoadNum);
+  fill('f-origin', data.origin || data.pickupAddress);
+  fill('f-dest', data.destination || data.deliveryAddress);
   fill('f-gross', data.grossRate);
-  fill('f-notes', data.notes);
+  fill('f-notes', [
+    data.notes,
+    data.commodity ? 'Commodity: ' + data.commodity : '',
+    data.equipment ? 'Equipment: ' + data.equipment : '',
+    data.brokerPhone ? 'Broker phone: ' + data.brokerPhone : '',
+    data.brokerEmail ? 'Broker email: ' + data.brokerEmail : '',
+    data.miles ? 'Miles: ' + data.miles : '',
+    data.deliveryDate ? 'Delivery date: ' + data.deliveryDate : ''
+  ].filter(Boolean).join(' | '));
+
   if (data.pickupDate) fill('f-date', data.pickupDate);
 
   // Auto-calculate commissions
   calcLoad();
+
+  // Show what was extracted in a summary
+  const summary = [];
+  if (data.loadId) summary.push('Load #: ' + data.loadId);
+  if (data.brokerName) summary.push('Broker: ' + data.brokerName);
+  if (data.origin) summary.push('From: ' + data.origin);
+  if (data.destination) summary.push('To: ' + data.destination);
+  if (data.grossRate) summary.push('Rate: $' + data.grossRate);
+
+  const successEl = document.getElementById('dzSuccess');
+  if (successEl && summary.length) {
+    successEl.querySelector('.dz-success-sub').textContent = summary.join(' · ');
+  }
 
   // Scroll to form
   setTimeout(() => {
