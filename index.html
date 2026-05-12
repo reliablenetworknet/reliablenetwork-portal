@@ -641,7 +641,17 @@
     };
 
     try {
+      // Send notification to ops@reliablenetwork.net
       await emailjs.send('service_jf2d3wq', 'template_r7gh1vt', templateParams);
+
+      // Send auto-reply confirmation to the person who submitted
+      const replyParams = {
+        from_email: form.querySelector('[name="email"]').value,
+        first_name: form.querySelector('[name="first-name"]').value,
+        message:    form.querySelector('[name="message"]').value,
+      };
+      await emailjs.send('service_jf2d3wq', 'template_ihih27b', replyParams);
+
       window.location.href = '/thank-you.html';
     } catch(err) {
       console.error('EmailJS error:', err);
