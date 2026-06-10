@@ -598,54 +598,98 @@ async function dzParseWithAI(base64) {
           role: 'user',
           content: [
             { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-            { type: 'text', text: `You are an expert at reading trucking rate confirmation PDFs. Extract the load details and return ONLY a valid JSON object — no markdown, no backticks, no explanation, nothing else.
+            { type: 'text', text: `You are an expert at reading trucking rate confirmation PDFs from freight brokers. Extract load details and return ONLY a valid JSON object — no markdown, no backticks, no explanation.
 
-FIELD EXTRACTION RULES:
+IDENTIFY THE BROKER FIRST then apply the correct rules:
 
-1. "loadId" — This is the main load identifier used as the Load ID. Look for ANY of these labels:
-   - PO #, PO Number, Purchase Order
-   - Confirmation #, Confirmation Number, Conf #
-   - Load #, Load Number, Load ID
-   - Order #, Order Number
-   - Reference #, Ref #
-   - Pro #, Pro Number
-   - Shipment #, Shipment ID
-   Use the FIRST number you find associated with any of these labels.
+HUB GROUP (has "Hub Group" logo/text):
+- loadId = number next to "Load #" (e.g. 2492203)
+- brokerName = "Hub Group"
+- brokerContact = contact name shown (e.g. Tania Wain)
+- brokerPhone = phone number listed
+- brokerEmail = email address listed
+- origin = PU 1 full address, city, state
+- destination = DEL2 full address, city, state
+- pickupDate = PU 1 date in YYYY-MM-DD format
+- deliveryDate = DEL date in YYYY-MM-DD format
+- grossRate = NUMBER only from "Total Carrier Pay" (strip $ and commas)
+- commodity = "Commodity" field value
+- equipment = "Trailer" field value
+- miles = "Miles" field value as number
 
-2. "brokerName" — The freight broker or shipper company name. This is usually the LARGEST or BOLDEST text at the very top of the document — the company header/letterhead. It is NOT the carrier name.
+KINGPOST (has "Kingpost" text):
+- loadId = number next to "Load Confirmation" or "Order:" (e.g. 0163572)
+- brokerName = "Kingpost"
+- brokerPhone = phone at top
+- origin = PU 1 full address, city, state
+- destination = SO 2 or DEL full address, city, state
+- pickupDate = PU 1 date in YYYY-MM-DD format
+- deliveryDate = SO/DEL date in YYYY-MM-DD format
+- grossRate = NUMBER only from "Total Carrier Pay" (strip $ and commas)
+- commodity = "Commodity" field
+- miles = "Miles" field as number
 
-3. "origin" — Pickup location. Look for: Pickup, Origin, Ship From, PU, Pick Up. Include city and state.
+LONGSHIP (has "LONGSHIP" or plus sign logo):
+- loadId = number next to "LS PO#" (e.g. 636536)
+- brokerName = "Longship"
+- brokerPhone = phone at top
+- brokerEmail = email at top
+- origin = pickup Shed name + city + state + physical address
+- destination = Consignee name + city + state + physical address
+- pickupDate = pickup date in YYYY-MM-DD format
+- deliveryDate = delivery date in YYYY-MM-DD format
+- grossRate = NUMBER only from "Estimated Rate (To The Truck)" (strip $ and commas)
+- commodity = Commodities field
+- equipment = Trailer type
+- miles = Miles field as number
 
-4. "destination" — Delivery location. Look for: Delivery, Destination, Ship To, DEL, Consignee. Include city and state.
+SYNCHROGISTICS (has "SYNCHROGISTICS" text):
+- loadId = number next to "Load Number:" (e.g. 587369)
+- brokerName = "Synchrogistics"
+- brokerEmail = email shown
+- origin = Shipper Pickup name + address + city + state
+- destination = Consignee Delivery name + address + city + state
+- pickupDate = Expected Date at pickup in YYYY-MM-DD
+- deliveryDate = Expected Date at delivery in YYYY-MM-DD
+- grossRate = NUMBER only from "Net Freight Charges" or "Total Cost" (strip USD $ commas)
+- commodity = Commodity Description
+- equipment = Equipment Type
+- miles = Distance (Miles) as number
 
-5. "pickupDate" — Pickup date in YYYY-MM-DD format. Look for: Pickup Date, PU Date, Ship Date.
+UBER FREIGHT (has "Uber Freight" or "uber" text):
+- loadId = number next to "Load Number" (e.g. 8657384312)
+- brokerName = "Uber Freight"
+- brokerPhone = "844-822-UBER"
+- brokerEmail = "freight-carrier@uber.com"
+- origin = Shipper name + city + state
+- destination = Consignee/Delivery name + city + state
+- pickupDate = pickup date in YYYY-MM-DD format
+- deliveryDate = delivery date in YYYY-MM-DD format
+- grossRate = NUMBER only from "Agreed upon price" or "Line Haul" (strip $ commas)
+- commodity = Commodity field
+- equipment = Equipment field
+- miles = Distance field as number
 
-6. "deliveryDate" — Delivery date in YYYY-MM-DD format. Look for: Delivery Date, DEL Date, Drop Date.
+ANY OTHER BROKER:
+- loadId = first number found after: Load #, Load Number, PO #, Order #, Confirmation #, Ref #
+- brokerName = largest company name at top (NOT the carrier — carrier is DYLAND TRUCKING INC)
+- grossRate = NUMBER from: Total Carrier Pay, Carrier Freight Pay, Net Freight Charges, Agreed upon price, Line Haul, Flat Rate, Estimated Rate (strip $, USD, commas)
+- origin = pickup city and state
+- destination = delivery city and state
 
-7. "grossRate" — The carrier pay/rate amount as a NUMBER only (no $ sign). Look for: Rate, Total Rate, Carrier Rate, Carrier Pay, Line Haul, All-In Rate, Flat Rate, Total Amount. This is what Reliable Network gets paid for the load.
+IMPORTANT: 
+- NEVER use "DYLAND TRUCKING INC" as the broker name — that is the carrier
+- All dates must be in YYYY-MM-DD format
+- grossRate must be a NUMBER only, no symbols
+- miles must be a NUMBER only
 
-8. "miles" — Total miles as a NUMBER only. Look for: Miles, Total Miles, Distance.
-
-9. "commodity" — What is being shipped. Look for: Commodity, Product, Description, Freight.
-
-10. "equipment" — Truck type needed. Look for: Equipment, Equipment Type, Mode, Service. Common values: Dry Van, Reefer, Flatbed, Step Deck.
-
-11. "brokerPhone" — Broker or dispatcher phone number.
-
-12. "brokerEmail" — Broker or dispatcher email address.
-
-13. "pickupAddress" — Full pickup address including street if available.
-
-14. "deliveryAddress" — Full delivery address including street if available.
-
-15. "notes" — Any special instructions, requirements, or notes.
-
-Return exactly this JSON structure:
+Return exactly this JSON:
 {
   "brokerName": "",
   "loadId": "",
   "brokerPhone": "",
   "brokerEmail": "",
+  "brokerContact": "",
   "origin": "",
   "pickupAddress": "",
   "pickupDate": "",
@@ -656,6 +700,7 @@ Return exactly this JSON structure:
   "miles": 0,
   "commodity": "",
   "equipment": "",
+  "weight": "",
   "notes": ""
 }` }
           ]
@@ -713,10 +758,13 @@ function dzFillForm(data) {
     data.notes,
     data.commodity ? 'Commodity: ' + data.commodity : '',
     data.equipment ? 'Equipment: ' + data.equipment : '',
-    data.brokerPhone ? 'Broker phone: ' + data.brokerPhone : '',
+    data.weight ? 'Weight: ' + data.weight : '',
+    data.brokerContact ? 'Contact: ' + data.brokerContact : '',
+    data.brokerPhone ? 'Broker ph: ' + data.brokerPhone : '',
     data.brokerEmail ? 'Broker email: ' + data.brokerEmail : '',
     data.miles ? 'Miles: ' + data.miles : '',
-    data.deliveryDate ? 'Delivery date: ' + data.deliveryDate : ''
+    data.deliveryDate ? 'Del date: ' + data.deliveryDate : '',
+    data.deliveryAddress ? 'Del address: ' + data.deliveryAddress : ''
   ].filter(Boolean).join(' | '));
 
   if (data.pickupDate) fill('f-date', data.pickupDate);
