@@ -45,6 +45,13 @@
           placeholder="••••••••"
           onfocus="this.style.borderColor='#0f2340'" onblur="this.style.borderColor='#e2e8f0'">
       </div>
+      <div style="text-align:right;margin-top:-10px;margin-bottom:18px">
+        <a id="forgot-password-link" href="#" onclick="handleForgotPassword();return false;"
+          style="font-family:var(--font);font-size:12px;color:#64748b;text-decoration:none;letter-spacing:0.01em"
+          onmouseover="this.style.color='#0f2340'" onmouseout="this.style.color='#64748b'">
+          Forgot password?
+        </a>
+      </div>
       <div id="login-error" style="color:#dc2626;font-size:13px;font-family:var(--font);margin-bottom:12px;min-height:16px;text-align:center"></div>
       <button id="login-btn" type="submit"
         style="width:100%;padding:13px 20px;background:#0f2340;color:white;border:none;border-radius:10px;font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer;letter-spacing:0.02em;transition:background 0.2s"
