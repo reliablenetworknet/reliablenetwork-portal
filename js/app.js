@@ -1,257 +1,336 @@
-// ── Reliable Network — App Logic ──
+// ── Reliable Network — Portal App (Phase 1: Read-Only) ──
+//
+// PHASE 1 SCOPE
+//   ✓ Supabase email/password login
+//   ✓ Session persistence across page reloads
+//   ✓ Logout
+//   ✓ Resolve workspace from workspace_memberships
+//   ✓ Resolve user role
+//   ✓ Read loads, drivers, trucks
+//   ✓ Display dashboard, all-loads, dispatch, drivers, trucks, financials, compliance
+//
+//   ✗ No create / update / delete for any production data
+//   ✗ No generic CRUD — protected workflows use RPCs in a future phase:
+//       load status changes  → update_load_status()
+//       invoice posting      → post_invoice()
+//   ✗ Google Sheets untouched (remains production source of truth)
 
-const fmt = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtK = n => '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
-const pillClass = s => s === 'Paid' ? 'pill-paid' : s === 'In Transit' ? 'pill-transit' : 'pill-pending';
+import {
+  Auth,
+  DB,
+  loadAllFromSupabase,
+  getWorkspaceMembership,
+  clearWorkspaceCache
+} from './supabase.js';
 
-// ── Auth ──
-function handleLogin() {
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  init();
-}
-function handleLogout() {
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('loginScreen').classList.remove('hidden');
-}
+// ── Forgot-password flow ───────────────────────────────────────────────────────
+// Called from the "Forgot password?" link in the login form.
+// Always shows a generic confirmation — never reveals whether the email exists.
 
-// ── Navigation ──
-const pageTitles = {
-  dashboard: ['Dashboard', 'Welcome back — Reliable Network'],
-  newload: ['New Load', 'Log a dispatched load'],
-  loads: ['All Loads', 'Full load history'],
-  dispatch: ['Dispatch Board', 'Live driver status'],
-  drivers: ['Drivers', 'Owner operator registry'],
-  trucks: ['Trucks', 'Equipment registry'],
-  financials: ['Financials', 'Revenue & commission summary'],
-  compliance: ['Compliance', 'Document & expiry tracker'],
+window.handleForgotPassword = async function () {
+  const emailInput = document.getElementById('login-email');
+  const errEl      = document.getElementById('login-error');
+  const forgotLink = document.getElementById('forgot-password-link');
+  const email      = emailInput ? emailInput.value.trim() : '';
+
+  if (!email) {
+    if (errEl) errEl.textContent = 'Enter your email above, then click "Forgot password?".';
+    if (emailInput) emailInput.focus();
+    return;
+  }
+
+  if (forgotLink) { forgotLink.textContent = 'Sending…'; forgotLink.style.pointerEvents = 'none'; }
+  if (errEl) errEl.textContent = '';
+
+  // Fire-and-forget — Auth.resetPasswordForEmail never throws and never
+  // returns a value, so the UI cannot distinguish found vs not-found.
+  await Auth.resetPasswordForEmail(email);
+
+  if (errEl) {
+    errEl.style.color = '#16a34a';
+    errEl.textContent = 'If an account exists for that email, a password reset link has been sent.';
+  }
+  if (forgotLink) { forgotLink.textContent = 'Forgot password?'; forgotLink.style.pointerEvents = ''; }
+
+  // Reset the colour after 8 seconds so it doesn't confuse a later real error
+  setTimeout(() => {
+    if (errEl) errEl.style.color = '#dc2626';
+  }, 8000);
 };
 
-function navigate(pageId, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + pageId).classList.add('active');
-  if (el) el.classList.add('active');
-  const [title, sub] = pageTitles[pageId] || [pageId, ''];
-  document.getElementById('pageTitle').textContent = title;
-  document.getElementById('pageSub').textContent = sub;
-  const renders = { dashboard: renderDashboard, loads: renderLoads, dispatch: renderDispatch, drivers: renderDrivers, trucks: renderTrucks, financials: renderFinancials, compliance: renderCompliance, notifications: renderNotifications };
-  if (renders[pageId]) renders[pageId]();
+// ── Formatting helpers ────────────────────────────────────────────────────────
+
+const fmt  = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtK = n => '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+function pillClass(s) {
+  if (s === 'Settled' || s === 'Delivered') return 'pill-paid';
+  if (s === 'In Transit' || s === 'Dispatched') return 'pill-transit';
+  if (s === 'Cancelled') return 'pill-expired';
+  return 'pill-pending'; // Booked, Invoiced, anything else
 }
 
-// ── Init ──
+// ── Auth flow ─────────────────────────────────────────────────────────────────
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
+
+  errEl.textContent = '';
+  btn.disabled  = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    await Auth.signIn(email, password);
+    // onAuthStateChange fires SIGNED_IN → showApp() is called there
+  } catch (err) {
+    errEl.textContent = err.message || 'Sign-in failed. Check your email and password.';
+    btn.disabled  = false;
+    btn.textContent = 'Sign in';
+  }
+}
+
+async function handleLogout() {
+  clearWorkspaceCache();
+  try { await Auth.signOut(); } catch (err) { console.error('Sign out:', err); }
+  showLoginScreen();
+}
+
+function showLoginScreen() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  // Reset login form state
+  const btn = document.getElementById('login-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
+}
+
+async function showApp(user) {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  // Fill sidebar user display
+  const email    = user?.email || '';
+  const handle   = email.split('@')[0];
+  const initials = handle.slice(0, 2).toUpperCase();
+  setText('user-display-name',     handle);
+  setText('user-display-email',    email);
+  setText('user-display-initials', initials);
+
+  // Resolve role and show badge if present
+  try {
+    const { role } = await getWorkspaceMembership();
+    if (role) {
+      const roleEl = document.getElementById('user-display-role');
+      if (roleEl) { roleEl.textContent = role; roleEl.style.display = 'inline-block'; }
+    }
+  } catch (_) { /* role badge is decorative — don't block app load */ }
+
+  await init();
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('loginForm');
+  if (form) form.addEventListener('submit', handleLogin);
+
+  // Auth state changes (sign-in / sign-out events from Supabase)
+  Auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      showApp(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      showLoginScreen();
+    }
+  });
+
+  // Restore existing session on page load (session persistence)
+  Auth.getSession().then(session => {
+    if (session?.user) {
+      showApp(session.user);
+    } else {
+      showLoginScreen();
+    }
+  });
+});
+
+// expose logout to inline onclick
+window.handleLogout = handleLogout;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
 async function init() {
   const now = new Date();
-  document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-  document.getElementById('f-date').value = now.toISOString().split('T')[0];
+  setText('currentDate', now.toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+  }));
+  const dateEl = document.getElementById('f-date');
+  if (dateEl) dateEl.value = now.toISOString().split('T')[0];
 
-  // Load all data from Google Sheets
-  await loadAllFromSheets();
+  await loadAllFromSupabase();
 
-  // Now populate UI with fresh data
   populateDriverDropdowns();
   populateTruckDropdown();
-  const loads = DB.get('loads');
-  document.getElementById('f-loadId').value = 'LD-' + String(loads.length + 1).padStart(3, '0');
   renderDashboard();
 }
 
 function populateDriverDropdowns() {
   const drivers = DB.get('drivers');
-  const sel = document.getElementById('f-driver');
+  const sel  = document.getElementById('f-driver');
   const fsel = document.getElementById('filterDriver');
-  sel.innerHTML = '<option value="">Select driver...</option>';
-  fsel.innerHTML = '<option value="">All drivers</option>';
-  drivers.forEach(d => {
-    sel.add(new Option(d.name + ' — ' + d.truck, d.id));
-    fsel.add(new Option(d.name, d.id));
-  });
+  if (sel) {
+    sel.innerHTML = '<option value="">Select driver…</option>';
+    drivers.forEach(d => sel.add(new Option(d.name + (d.truck ? ' — ' + d.truck : ''), d.id)));
+  }
+  if (fsel) {
+    fsel.innerHTML = '<option value="">All drivers</option>';
+    drivers.forEach(d => fsel.add(new Option(d.name, d.id)));
+  }
 }
 
 function populateTruckDropdown() {
   const trucks = DB.get('trucks');
   const sel = document.getElementById('f-truck');
-  sel.innerHTML = '<option value="">Select truck...</option>';
-  trucks.forEach(t => sel.add(new Option(t.id + ' — ' + t.year + ' ' + t.make + ' ' + t.model, t.id)));
+  if (sel) {
+    sel.innerHTML = '<option value="">Select truck…</option>';
+    trucks.forEach(t => sel.add(new Option(
+      t.id + (t.make ? ' — ' + [t.year, t.make, t.model].filter(Boolean).join(' ') : ''), t.id
+    )));
+  }
 }
 
-// ── Dashboard ──
-function renderDashboard() {
-  const loads = DB.get('loads');
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+const pageTitles = {
+  dashboard:     ['Dashboard',      'Welcome back — Reliable Network'],
+  newload:       ['New Load',       'Log a dispatched load'],
+  loads:         ['All Loads',      'Full load history'],
+  dispatch:      ['Dispatch Board', 'Live driver status'],
+  drivers:       ['Drivers',        'Owner operator registry'],
+  trucks:        ['Trucks',         'Equipment registry'],
+  financials:    ['Financials',     'Revenue & commission summary'],
+  compliance:    ['Compliance',     'Document & expiry tracker'],
+  notifications: ['Notifications',  'Send load details to drivers and brokers']
+};
+
+function navigate(pageId, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + pageId);
+  if (page) page.classList.add('active');
+  if (el)   el.classList.add('active');
+  const [title, sub] = pageTitles[pageId] || [pageId, ''];
+  setText('pageTitle', title);
+  setText('pageSub',   sub);
+  const renders = {
+    dashboard,
+    loads:         renderLoads,
+    dispatch:      renderDispatch,
+    drivers:       renderDrivers,
+    trucks:        renderTrucks,
+    financials:    renderFinancials,
+    compliance:    renderCompliance,
+    notifications: renderNotifications
+  };
+  if (renders[pageId]) renders[pageId]();
+}
+window.navigate = navigate;
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+function renderDashboard() { dashboard(); }
+
+function dashboard() {
+  const loads   = DB.get('loads');
   const drivers = DB.get('drivers');
-  const now = new Date();
-  const thisMonth = loads.filter(l => { const d = new Date(l.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
-  const gross = thisMonth.reduce((s, l) => s + Number(l.gross), 0);
-  const net = thisMonth.reduce((s, l) => s + Number(l.net9), 0);
+  const now     = new Date();
+  const mo = now.getMonth(), yr = now.getFullYear();
 
-  document.getElementById('kpi-drivers').textContent = drivers.filter(d => d.status === 'Active').length;
-  document.getElementById('kpi-loads').textContent = thisMonth.length;
-  document.getElementById('kpi-gross').textContent = fmtK(gross);
-  document.getElementById('kpi-net').textContent = fmtK(net);
-  document.getElementById('kpi-month').textContent = now.toLocaleString('default', { month: 'long' }) + ' ' + now.getFullYear();
+  const thisMonth = loads.filter(l => {
+    const d = new Date(l.date);
+    return d.getMonth() === mo && d.getFullYear() === yr;
+  });
 
-  const list = document.getElementById('recentLoadsList');
+  const gross = thisMonth.reduce((s, l) => s + l.gross, 0);
+  const net   = thisMonth.reduce((s, l) => s + l.net9,  0);
+
+  setText('kpi-drivers', drivers.filter(d => d.status === 'Active').length);
+  setText('kpi-loads',   thisMonth.length);
+  setText('kpi-gross',   fmtK(gross));
+  setText('kpi-net',     fmtK(net));
+  setText('kpi-month',   now.toLocaleString('default', { month: 'long' }) + ' ' + yr);
+
+  const list   = document.getElementById('recentLoadsList');
   const recent = loads.slice(0, 6);
-  if (!recent.length) { list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">No loads logged yet</div>'; return; }
+  if (!list) return;
+  if (!recent.length) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">No loads yet</div>';
+    return;
+  }
   list.innerHTML = recent.map(l => `
     <div class="load-mini">
       <span class="lm-id">${l.id}</span>
       <span class="lm-route">${l.origin} → ${l.dest}</span>
-      <span class="lm-driver">${l.driverName.split(' ')[0]}</span>
+      <span class="lm-driver">${(l.driverName || '').split(' ')[0]}</span>
       <span class="lm-net">${fmt(l.net9)}</span>
       <span class="pill ${pillClass(l.status)}">${l.status}</span>
     </div>`).join('');
 }
 
-// ── New Load ──
-function calcLoad() {
-  const g = parseFloat(document.getElementById('f-gross').value) || 0;
-  document.getElementById('c-gross').textContent = fmt(g);
-  document.getElementById('c-12').textContent = fmt(g * 0.12);
-  document.getElementById('c-3').textContent = fmt(g * 0.03);
-  document.getElementById('c-9').textContent = fmt(g * 0.09);
-}
+// ── All Loads (read-only table) ───────────────────────────────────────────────
+// Edit / delete controls are hidden in Phase 1 — no write operations.
 
-function clearForm() {
-  ['f-origin','f-dest','f-broker','f-brokerLoad','f-gross','f-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-driver').value = '';
-  document.getElementById('f-truck').value = '';
-  document.getElementById('f-status').value = 'Pending';
-  calcLoad();
-}
-
-async function saveLoad() {
-  const gross = parseFloat(document.getElementById('f-gross').value);
-  const dSel = document.getElementById('f-driver');
-  const driverName = dSel.options[dSel.selectedIndex]?.text.split(' — ')[0] || '';
-  if (!document.getElementById('f-loadId').value || !gross || !dSel.value) { alert('Please fill in Load ID, Driver, and Gross Rate.'); return; }
-
-  const load = {
-    id: document.getElementById('f-loadId').value,
-    date: document.getElementById('f-date').value,
-    driverId: dSel.value,
-    driverName,
-    truckId: document.getElementById('f-truck').value,
-    origin: document.getElementById('f-origin').value,
-    dest: document.getElementById('f-dest').value,
-    gross,
-    pct12: +(gross * 0.12).toFixed(2),
-    pct3: +(gross * 0.03).toFixed(2),
-    net9: +(gross * 0.09).toFixed(2),
-    broker: document.getElementById('f-broker').value,
-    brokerLoad: document.getElementById('f-brokerLoad').value,
-    status: 'Pending',
-    notes: document.getElementById('f-notes').value
-  };
-
-  const loads = DB.get('loads');
-  loads.unshift(load);
-  await DB.save('loads', loads, load);
-  document.getElementById('f-loadId').value = 'LD-' + String(loads.length + 1).padStart(3, '0');
-  clearForm();
-  alert('✅ Load ' + load.id + ' saved!');
-  navigate('loads', document.querySelector('[data-page="loads"]'));
-}
-
-// ── All Loads — Full CRUD ──
 function renderLoads() {
   const loads = DB.get('loads');
-  const df = document.getElementById('filterDriver').value;
-  const sf = document.getElementById('filterStatus').value;
+  const df = document.getElementById('filterDriver')?.value || '';
+  const sf = document.getElementById('filterStatus')?.value  || '';
   const filtered = loads.filter(l => (!df || l.driverId === df) && (!sf || l.status === sf));
 
-  document.getElementById('loadsBody').innerHTML = filtered.length ? filtered.map(l => `
-    <tr>
-      <td class="mono">${l.id}</td>
-      <td>${l.date}</td>
-      <td>${l.driverName}</td>
-      <td>${l.origin} → ${l.dest}</td>
-      <td>${l.broker || '—'}</td>
-      <td class="mono">${fmt(l.gross)}</td>
-      <td class="mono c-navy">${fmt(l.pct12)}</td>
-      <td class="mono c-amber">${fmt(l.pct3)}</td>
-      <td class="net-col">${fmt(l.net9)}</td>
-      <td><span class="pill ${pillClass(l.status)}">${l.status}</span></td>
-      <td>
-        <div class="crud-actions">
-          <button class="crud-btn edit" onclick="editLoad('${l.id}')" title="Edit">✏️</button>
-          <button class="crud-btn delete" onclick="deleteLoad('${l.id}')" title="Delete">🗑️</button>
-        </div>
-      </td>
-    </tr>`).join('') : '<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--gray-400)">No loads found</td></tr>';
+  const tbody = document.getElementById('loadsBody');
+  if (!tbody) return;
 
-  const tg = filtered.reduce((s, l) => s + Number(l.gross), 0);
-  const tn = filtered.reduce((s, l) => s + Number(l.net9), 0);
-  document.getElementById('loadsSummary').innerHTML = `${filtered.length} loads &nbsp;·&nbsp; Gross: ${fmt(tg)} &nbsp;·&nbsp; Your net: <strong style="color:var(--green)">${fmt(tn)}</strong>`;
+  tbody.innerHTML = filtered.length
+    ? filtered.map(l => `
+      <tr>
+        <td class="mono">${l.id}</td>
+        <td>${l.date}</td>
+        <td>${l.driverName}</td>
+        <td>${l.origin} → ${l.dest}</td>
+        <td>${l.broker || '—'}</td>
+        <td class="mono">${fmt(l.gross)}</td>
+        <td class="mono c-navy">${fmt(l.pct12)}</td>
+        <td class="mono c-amber">${fmt(l.pct3)}</td>
+        <td class="net-col">${fmt(l.net9)}</td>
+        <td><span class="pill ${pillClass(l.status)}">${l.status}</span></td>
+        <td><span style="font-size:11px;color:var(--gray-400);font-style:italic">read-only</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--gray-400)">No loads found</td></tr>';
+
+  const tg = filtered.reduce((s, l) => s + l.gross, 0);
+  const tn = filtered.reduce((s, l) => s + l.net9,  0);
+  const summaryEl = document.getElementById('loadsSummary');
+  if (summaryEl) summaryEl.innerHTML =
+    `${filtered.length} loads &nbsp;·&nbsp; Gross: ${fmt(tg)} &nbsp;·&nbsp; Your net: <strong style="color:var(--green)">${fmt(tn)}</strong>`;
 }
+window.renderLoads = renderLoads;
 
-function editLoad(id) {
-  const loads = DB.get('loads');
-  const l = loads.find(x => x.id === id);
-  if (!l) return;
-  openModal('Edit Load — ' + l.id, `
-    <div class="modal-grid">
-      <div class="fg"><label class="fl">Origin</label><input class="fi" id="el-origin" value="${l.origin}"></div>
-      <div class="fg"><label class="fl">Destination</label><input class="fi" id="el-dest" value="${l.dest}"></div>
-      <div class="fg"><label class="fl">Broker</label><input class="fi" id="el-broker" value="${l.broker}"></div>
-      <div class="fg"><label class="fl">Broker Load #</label><input class="fi" id="el-brokerLoad" value="${l.brokerLoad}"></div>
-      <div class="fg"><label class="fl">Gross Rate ($)</label><input class="fi" id="el-gross" type="number" value="${l.gross}" oninput="elCalc()"></div>
-      <div class="fg"><label class="fl">Status</label>
-        <select class="fi" id="el-status">
-          <option ${l.status==='Pending'?'selected':''}>Pending</option>
-          <option ${l.status==='Paid'?'selected':''}>Paid</option>
-          <option ${l.status==='In Transit'?'selected':''}>In Transit</option>
-        </select>
-      </div>
-      <div class="fg full"><label class="fl">Notes</label><input class="fi" id="el-notes" value="${l.notes||''}"></div>
-    </div>
-    <div class="modal-calc" id="elCalcPanel">
-      <div class="modal-calc-row"><span>Gross</span><span id="elc-gross">${fmt(l.gross)}</span></div>
-      <div class="modal-calc-row"><span>Your 12%</span><span class="c-navy" id="elc-12">${fmt(l.pct12)}</span></div>
-      <div class="modal-calc-row"><span>Factoring 3%</span><span class="c-amber" id="elc-3">${fmt(l.pct3)}</span></div>
-      <div class="modal-calc-row total"><span>Your net 9%</span><span class="c-green" id="elc-9">${fmt(l.net9)}</span></div>
-    </div>`,
-  () => {
-    const gross = parseFloat(document.getElementById('el-gross').value) || 0;
-    const idx = loads.findIndex(x => x.id === id);
-    loads[idx] = { ...l,
-      origin: document.getElementById('el-origin').value,
-      dest: document.getElementById('el-dest').value,
-      broker: document.getElementById('el-broker').value,
-      brokerLoad: document.getElementById('el-brokerLoad').value,
-      gross, pct12: +(gross*0.12).toFixed(2), pct3: +(gross*0.03).toFixed(2), net9: +(gross*0.09).toFixed(2),
-      status: document.getElementById('el-status').value,
-      notes: document.getElementById('el-notes').value
-    };
-    DB.set('loads', loads);
-    closeModal();
-    renderLoads();
-    showToast('Load ' + id + ' updated');
-  });
-}
+// ── Dispatch Board (read-only) ────────────────────────────────────────────────
 
-window.elCalc = function() {
-  const g = parseFloat(document.getElementById('el-gross').value) || 0;
-  document.getElementById('elc-gross').textContent = fmt(g);
-  document.getElementById('elc-12').textContent = fmt(g*0.12);
-  document.getElementById('elc-3').textContent = fmt(g*0.03);
-  document.getElementById('elc-9').textContent = fmt(g*0.09);
-};
-
-async function deleteLoad(id) {
-  if (!confirm('Delete load ' + id + '? This cannot be undone.')) return;
-  const loads = DB.get('loads').filter(l => l.id !== id);
-  await DB.remove('loads', loads, id);
-  renderLoads();
-  showToast('Load ' + id + ' deleted');
-}
-
-// ── Dispatch ──
 function renderDispatch() {
   const drivers = DB.get('drivers');
-  const loads = DB.get('loads');
-  document.getElementById('dispatchGrid').innerHTML = drivers.map(d => {
-    const active = loads.find(l => l.driverId === d.id && l.status === 'In Transit');
+  const loads   = DB.get('loads');
+  const grid    = document.getElementById('dispatchGrid');
+  if (!grid) return;
+
+  grid.innerHTML = drivers.map(d => {
+    const active   = loads.find(l => l.driverId === d.id && l.status === 'In Transit');
     const initials = d.name.split(' ').map(w => w[0]).join('').slice(0, 2);
     if (active) {
       return `<div class="dispatch-card">
@@ -263,7 +342,7 @@ function renderDispatch() {
           <div class="dc-detail">Load: <span>${active.id}</span></div>
           <div class="dc-detail">Route: <span>${active.origin} → ${active.dest}</span></div>
           <div class="dc-detail">Gross: <span>${fmt(active.gross)}</span></div>
-          <div class="dc-detail">Your net: <span style="color:var(--green)">${fmt(active.net9)}</span></div>
+          <div class="dc-detail">Net 9%: <span style="color:var(--green)">${fmt(active.net9)}</span></div>
         </div>
         <div class="progress-bar"><div class="progress-fill" style="width:55%"></div></div>
         <div class="dc-eta">In progress</div>
@@ -272,319 +351,380 @@ function renderDispatch() {
     return `<div class="dispatch-card available">
       <div class="dc-avatar" style="background:var(--green-light);color:var(--green)">${initials}</div>
       <div class="dc-name">${d.name}</div>
-      <div class="dc-truck">${d.truck}</div>
+      <div class="dc-truck">${d.truck || '—'}</div>
       <span class="pill pill-active">Available</span>
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-100)">
-        <div style="font-size:13px;color:var(--gray-400);margin-bottom:10px">Ready for next load</div>
-        <button class="btn btn-primary btn-sm" onclick="navigate('newload',document.querySelector('[data-page=newload]'))">Assign load</button>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-100);font-size:12px;color:var(--gray-400)">
+        Ready for next load
       </div>
     </div>`;
   }).join('');
 }
 
-// ── Drivers — Full CRUD ──
+// ── Drivers (read-only) ───────────────────────────────────────────────────────
+
 function renderDrivers() {
   const drivers = DB.get('drivers');
-  document.getElementById('driversBody').innerHTML = drivers.length ? drivers.map(d => `
-    <tr>
-      <td class="mono">${d.id}</td>
-      <td><strong>${d.name}</strong></td>
-      <td>${d.phone}</td>
-      <td><span class="pill ${d.status === 'Active' ? 'pill-active' : 'pill-expired'}">${d.status}</span></td>
-      <td class="mono">${d.cdlExp || '—'}</td>
-      <td class="mono">${d.truck || '—'}</td>
-      <td>
-        <div class="crud-actions">
-          <button class="crud-btn edit" onclick="editDriver('${d.id}')" title="Edit">✏️</button>
-          <button class="crud-btn delete" onclick="deleteDriver('${d.id}')" title="Delete">🗑️</button>
-        </div>
-      </td>
-    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No drivers added yet</td></tr>';
+  const tbody   = document.getElementById('driversBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = drivers.length
+    ? drivers.map(d => `
+      <tr>
+        <td class="mono">${d.id}</td>
+        <td><strong>${d.name}</strong></td>
+        <td>${d.phone}</td>
+        <td><span class="pill ${d.status === 'Active' ? 'pill-active' : 'pill-expired'}">${d.status}</span></td>
+        <td class="mono">${d.cdlExp || '—'}</td>
+        <td class="mono">${d.truck  || '—'}</td>
+        <td><span style="font-size:11px;color:var(--gray-400);font-style:italic">read-only</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No drivers found</td></tr>';
 }
 
-function editDriver(id) {
-  const drivers = DB.get('drivers');
-  const d = drivers.find(x => x.id === id);
-  if (!d) return;
-  openModal('Edit Driver — ' + d.name, `
-    <div class="modal-grid">
-      <div class="fg"><label class="fl">Full name</label><input class="fi" id="ed-name" value="${d.name}"></div>
-      <div class="fg"><label class="fl">Phone</label><input class="fi" id="ed-phone" value="${d.phone}"></div>
-      <div class="fg"><label class="fl">Email</label><input class="fi" id="ed-email" value="${d.email||''}"></div>
-      <div class="fg"><label class="fl">CDL Number</label><input class="fi" id="ed-cdl" value="${d.cdl||''}"></div>
-      <div class="fg"><label class="fl">CDL Expiry</label><input class="fi" type="date" id="ed-cdlExp" value="${d.cdlExp||''}"></div>
-      <div class="fg"><label class="fl">Truck assigned</label><input class="fi" id="ed-truck" value="${d.truck||''}"></div>
-      <div class="fg"><label class="fl">Status</label>
-        <select class="fi" id="ed-status">
-          <option ${d.status==='Active'?'selected':''}>Active</option>
-          <option ${d.status==='Inactive'?'selected':''}>Inactive</option>
-        </select>
-      </div>
-      <div class="fg"><label class="fl">Emergency Contact</label><input class="fi" id="ed-emergency" value="${d.emergency||''}"></div>
-    </div>`,
-  () => {
-    const idx = drivers.findIndex(x => x.id === id);
-    drivers[idx] = { ...d,
-      name: document.getElementById('ed-name').value,
-      phone: document.getElementById('ed-phone').value,
-      email: document.getElementById('ed-email').value,
-      cdl: document.getElementById('ed-cdl').value,
-      cdlExp: document.getElementById('ed-cdlExp').value,
-      truck: document.getElementById('ed-truck').value,
-      status: document.getElementById('ed-status').value,
-      emergency: document.getElementById('ed-emergency').value,
-    };
-    DB.set('drivers', drivers);
-    closeModal();
-    renderDrivers();
-    populateDriverDropdowns();
-    showToast('Driver ' + id + ' updated');
-  });
-}
+// ── Trucks (read-only) ────────────────────────────────────────────────────────
 
-async function deleteDriver(id) {
-  const d = DB.get('drivers').find(x => x.id === id);
-  if (!confirm('Delete driver ' + (d?.name || id) + '? This cannot be undone.')) return;
-  const drivers = DB.get('drivers').filter(x => x.id !== id);
-  await DB.remove('drivers', drivers, id);
-  renderDrivers();
-  populateDriverDropdowns();
-  showToast('Driver deleted');
-}
-
-function showAddDriver() {
-  const f = document.getElementById('addDriverForm');
-  f.style.display = f.style.display === 'none' ? 'block' : 'none';
-}
-
-async function saveDriver() {
-  const drivers = DB.get('drivers');
-  const newDriver = {
-    id: 'DRV-' + String(drivers.length + 1).padStart(3, '0'),
-    name: document.getElementById('d-name').value,
-    phone: document.getElementById('d-phone').value,
-    email: document.getElementById('d-email').value,
-    status: 'Active',
-    cdl: document.getElementById('d-cdl').value,
-    cdlExp: document.getElementById('d-cdlExp').value,
-    truck: document.getElementById('d-truck').value,
-    leaseStart: new Date().toISOString().split('T')[0]
-  };
-  drivers.push(newDriver);
-  await DB.save('drivers', drivers, newDriver);
-  document.getElementById('addDriverForm').style.display = 'none';
-  populateDriverDropdowns();
-  renderDrivers();
-}
-
-// ── Trucks — Full CRUD ──
 function renderTrucks() {
   const trucks = DB.get('trucks');
-  document.getElementById('trucksBody').innerHTML = trucks.length ? trucks.map(t => `
-    <tr>
-      <td class="mono">${t.id}</td>
-      <td>${t.year}</td>
-      <td>${t.make} ${t.model}</td>
-      <td class="mono" style="font-size:11px">${t.vin}</td>
-      <td><span class="pill ${t.status === 'Active' ? 'pill-active' : 'pill-expired'}">${t.status}</span></td>
-      <td class="mono">${t.nextInspect || '—'}</td>
-      <td class="mono">${t.insExp || '—'}</td>
-      <td>
-        <div class="crud-actions">
-          <button class="crud-btn edit" onclick="editTruck('${t.id}')" title="Edit">✏️</button>
-          <button class="crud-btn delete" onclick="deleteTruck('${t.id}')" title="Delete">🗑️</button>
-        </div>
-      </td>
-    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No trucks added yet</td></tr>';
+  const tbody  = document.getElementById('trucksBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = trucks.length
+    ? trucks.map(t => `
+      <tr>
+        <td class="mono">${t.id}</td>
+        <td>${t.year}</td>
+        <td>${t.make} ${t.model}</td>
+        <td class="mono" style="font-size:11px">${t.vin || '—'}</td>
+        <td><span class="pill ${t.status === 'Active' ? 'pill-active' : 'pill-expired'}">${t.status}</span></td>
+        <td class="mono">${t.nextInspect || '—'}</td>
+        <td class="mono">${t.insExp      || '—'}</td>
+        <td><span style="font-size:11px;color:var(--gray-400);font-style:italic">read-only</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No trucks found</td></tr>';
 }
 
-function editTruck(id) {
-  const trucks = DB.get('trucks');
-  const t = trucks.find(x => x.id === id);
-  if (!t) return;
-  openModal('Edit Truck — ' + id, `
-    <div class="modal-grid">
-      <div class="fg"><label class="fl">Year</label><input class="fi" id="et-year" value="${t.year}"></div>
-      <div class="fg"><label class="fl">Make</label><input class="fi" id="et-make" value="${t.make}"></div>
-      <div class="fg"><label class="fl">Model</label><input class="fi" id="et-model" value="${t.model}"></div>
-      <div class="fg"><label class="fl">VIN</label><input class="fi" id="et-vin" value="${t.vin}"></div>
-      <div class="fg"><label class="fl">License Plate</label><input class="fi" id="et-plate" value="${t.plate||''}"></div>
-      <div class="fg"><label class="fl">State</label><input class="fi" id="et-state" value="${t.state||''}"></div>
-      <div class="fg"><label class="fl">Next Inspection</label><input class="fi" type="date" id="et-inspect" value="${t.nextInspect||''}"></div>
-      <div class="fg"><label class="fl">Insurance Expiry</label><input class="fi" type="date" id="et-ins" value="${t.insExp||''}"></div>
-      <div class="fg"><label class="fl">Insurance Provider</label><input class="fi" id="et-insProvider" value="${t.insProvider||''}"></div>
-      <div class="fg"><label class="fl">Status</label>
-        <select class="fi" id="et-status">
-          <option ${t.status==='Active'?'selected':''}>Active</option>
-          <option ${t.status==='Inactive'?'selected':''}>Inactive</option>
-          <option ${t.status==='In Shop'?'selected':''}>In Shop</option>
-        </select>
-      </div>
-    </div>`,
-  () => {
-    const idx = trucks.findIndex(x => x.id === id);
-    trucks[idx] = { ...t,
-      year: document.getElementById('et-year').value,
-      make: document.getElementById('et-make').value,
-      model: document.getElementById('et-model').value,
-      vin: document.getElementById('et-vin').value,
-      plate: document.getElementById('et-plate').value,
-      state: document.getElementById('et-state').value,
-      nextInspect: document.getElementById('et-inspect').value,
-      insExp: document.getElementById('et-ins').value,
-      insProvider: document.getElementById('et-insProvider').value,
-      status: document.getElementById('et-status').value,
-    };
-    DB.set('trucks', trucks);
-    closeModal();
-    renderTrucks();
-    showToast('Truck ' + id + ' updated');
-  });
-}
+// ── Financials ────────────────────────────────────────────────────────────────
 
-async function deleteTruck(id) {
-  if (!confirm('Delete truck ' + id + '? This cannot be undone.')) return;
-  const trucks = DB.get('trucks').filter(x => x.id !== id);
-  await DB.remove('trucks', trucks, id);
-  renderTrucks();
-  showToast('Truck deleted');
-}
-
-function showAddTruck() {
-  const f = document.getElementById('addTruckForm');
-  f.style.display = f.style.display === 'none' ? 'block' : 'none';
-}
-
-async function saveTruck() {
-  const trucks = DB.get('trucks');
-  const newTruck = {
-    id: document.getElementById('t-id').value,
-    year: document.getElementById('t-year').value,
-    make: document.getElementById('t-make').value,
-    model: document.getElementById('t-model').value,
-    vin: document.getElementById('t-vin').value,
-    plate: document.getElementById('t-plate').value,
-    status: 'Active',
-    nextInspect: document.getElementById('t-inspect').value,
-    insExp: document.getElementById('t-ins').value
-  };
-  trucks.push(newTruck);
-  await DB.save('trucks', trucks, newTruck);
-  document.getElementById('addTruckForm').style.display = 'none';
-  renderTrucks();
-}
-
-// ── Financials ──
 function renderFinancials() {
   const loads = DB.get('loads');
-  document.getElementById('fin-gross').textContent = fmtK(loads.reduce((s,l) => s+Number(l.gross),0));
-  document.getElementById('fin-12').textContent = fmtK(loads.reduce((s,l) => s+Number(l.pct12),0));
-  document.getElementById('fin-3').textContent = fmtK(loads.reduce((s,l) => s+Number(l.pct3),0));
-  document.getElementById('fin-9').textContent = fmtK(loads.reduce((s,l) => s+Number(l.net9),0));
+  setText('fin-gross', fmtK(loads.reduce((s, l) => s + l.gross, 0)));
+  setText('fin-12',    fmtK(loads.reduce((s, l) => s + l.pct12, 0)));
+  setText('fin-3',     fmtK(loads.reduce((s, l) => s + l.pct3,  0)));
+  setText('fin-9',     fmtK(loads.reduce((s, l) => s + l.net9,  0)));
 
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const year = new Date().getFullYear();
-  document.getElementById('monthlyBody').innerHTML = months.map((m, i) => {
-    const ml = loads.filter(l => { const d = new Date(l.date); return d.getMonth() === i && d.getFullYear() === year; });
-    if (!ml.length) return `<tr><td>${m}</td><td style="color:var(--gray-300)">—</td><td style="color:var(--gray-300)">—</td><td style="color:var(--gray-300)">—</td><td style="color:var(--gray-300)">—</td><td style="color:var(--gray-300)">—</td></tr>`;
-    const g = ml.reduce((s,l)=>s+Number(l.gross),0);
-    const p12 = ml.reduce((s,l)=>s+Number(l.pct12),0);
-    const p3 = ml.reduce((s,l)=>s+Number(l.pct3),0);
-    const n9 = ml.reduce((s,l)=>s+Number(l.net9),0);
-    return `<tr><td><strong>${m}</strong></td><td>${ml.length}</td><td class="mono">${fmt(g)}</td><td class="mono c-navy">${fmt(p12)}</td><td class="mono c-amber">${fmt(p3)}</td><td class="net-col">${fmt(n9)}</td></tr>`;
+  const year   = new Date().getFullYear();
+  const months = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const tbody  = document.getElementById('monthlyBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = months.map((m, i) => {
+    const ml = loads.filter(l => {
+      const d = new Date(l.date);
+      return d.getMonth() === i && d.getFullYear() === year;
+    });
+    if (!ml.length) return `<tr><td>${m}</td><td colspan="5" style="color:var(--gray-300)">—</td></tr>`;
+    const g  = ml.reduce((s, l) => s + l.gross, 0);
+    const p12 = ml.reduce((s, l) => s + l.pct12, 0);
+    const p3  = ml.reduce((s, l) => s + l.pct3,  0);
+    const n9  = ml.reduce((s, l) => s + l.net9,  0);
+    return `<tr>
+      <td><strong>${m}</strong></td>
+      <td>${ml.length}</td>
+      <td class="mono">${fmt(g)}</td>
+      <td class="mono c-navy">${fmt(p12)}</td>
+      <td class="mono c-amber">${fmt(p3)}</td>
+      <td class="net-col">${fmt(n9)}</td>
+    </tr>`;
   }).join('');
 }
 
-// ── Compliance ──
+// ── Compliance ────────────────────────────────────────────────────────────────
+
 function renderCompliance() {
   const drivers = DB.get('drivers');
-  const trucks = DB.get('trucks');
-  const today = new Date();
-  const items = [];
+  const trucks  = DB.get('trucks');
+  const today   = new Date();
+  const items   = [];
 
   drivers.forEach(d => {
-    [['CDL License', d.cdlExp], ['Medical Card', d.medExp||'']].forEach(([doc, exp]) => {
+    [['CDL License', d.cdlExp], ['Medical Card', d.medExp]].forEach(([doc, exp]) => {
       if (!exp) return;
-      const days = Math.ceil((new Date(exp) - today) / 86400000);
-      items.push({ name: d.name, doc, exp, days });
+      items.push({ name: d.name, doc, exp, days: Math.ceil((new Date(exp) - today) / 86400000) });
     });
   });
 
   trucks.forEach(t => {
     [['Annual Inspection', t.nextInspect], ['Insurance', t.insExp]].forEach(([doc, exp]) => {
       if (!exp) return;
-      const days = Math.ceil((new Date(exp) - today) / 86400000);
-      items.push({ name: t.id + ' ' + t.make + ' ' + t.model, doc, exp, days });
+      const label = t.id + (t.make ? ' ' + t.make : '');
+      items.push({ name: label, doc, exp, days: Math.ceil((new Date(exp) - today) / 86400000) });
     });
   });
 
   items.sort((a, b) => a.days - b.days);
 
-  document.getElementById('complianceList').innerHTML = items.map(item => {
-    const cls = item.days < 0 ? 'pill-expired' : item.days <= 30 ? 'pill-warning' : 'pill-active';
-    const txt = item.days < 0 ? 'Expired' : item.days <= 30 ? item.days + 'd left' : 'OK';
-    return `<div class="comp-item">
-      <div class="comp-left">
-        <div class="comp-name">${item.name}</div>
-        <div class="comp-doc">${item.doc}</div>
-      </div>
-      <div class="comp-right">
-        <span class="comp-date">${item.exp}</span>
-        <span class="pill ${cls}">${txt}</span>
-      </div>
-    </div>`;
-  }).join('');
+  const list = document.getElementById('complianceList');
+  if (!list) return;
+
+  list.innerHTML = items.length
+    ? items.map(item => {
+        const cls = item.days < 0  ? 'pill-expired'  :
+                    item.days <= 30 ? 'pill-warning'  : 'pill-active';
+        const txt = item.days < 0  ? 'Expired'       :
+                    item.days <= 30 ? item.days + 'd left' : 'OK';
+        return `<div class="comp-item">
+          <div class="comp-left">
+            <div class="comp-name">${item.name}</div>
+            <div class="comp-doc">${item.doc}</div>
+          </div>
+          <div class="comp-right">
+            <span class="comp-date">${item.exp}</span>
+            <span class="pill ${cls}">${txt}</span>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">No compliance items found</div>';
 }
 
-// ── PDF Drag & Drop ──
-function dzDragOver(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').classList.add('dz-over');
+// ── Notifications (read display only — sends via mailto / wa.me) ──────────────
+
+function renderNotifications() {
+  const loads = DB.get('loads');
+  const sel   = document.getElementById('notif-load-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Choose a load —</option>';
+  loads.forEach(l => sel.add(new Option(`${l.id} — ${l.origin} → ${l.dest} — ${l.driverName}`, l.id)));
 }
-function dzDragLeave(e) {
-  document.getElementById('dropZone').classList.remove('dz-over');
-}
-function dzDrop(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').classList.remove('dz-over');
-  const file = e.dataTransfer.files[0];
-  if (file && file.type === 'application/pdf') {
-    dzHandleFile(file);
-  } else {
-    alert('Please drop a PDF file.');
+
+window.onNotifLoadSelect = function() {
+  const id    = document.getElementById('notif-load-select').value;
+  if (!id) {
+    const info = document.getElementById('notif-load-info');
+    if (info) info.style.display = 'none';
+    setText('notif-load-badge', 'No load selected');
+    return;
   }
+  const loads   = DB.get('loads');
+  const drivers = DB.get('drivers');
+  const l       = loads.find(x => x.id === id);
+  if (!l) return;
+  const driver = drivers.find(d => d.id === l.driverId) || {};
+
+  const info = document.getElementById('notif-load-info');
+  if (info) info.style.display = 'block';
+  setText('notif-load-badge', l.id + ' — ' + l.status);
+  setText('ni-driver', l.driverName);
+  setText('ni-route',  l.origin + ' → ' + l.dest);
+  setText('ni-broker', l.broker || '—');
+  setText('ni-rate',   fmt(l.gross));
+
+  const waEl  = document.getElementById('driver-wa-number');
+  const emEl  = document.getElementById('driver-email');
+  if (waEl && driver.phone)  waEl.value = driver.phone;
+  if (emEl && driver.email)  emEl.value = driver.email;
+
+  const wa = [
+    `🚛 *RELIABLE NETWORK — New Load Assigned*`,
+    ``,
+    `📋 Load ID: ${l.id}`,
+    `👤 Driver: ${l.driverName}`,
+    `🚛 Truck: ${l.truckId || 'TBD'}`,
+    ``,
+    `📍 *PICKUP*`,
+    `📌 ${l.origin}`,
+    `📅 Date: ${l.date}`,
+    l.broker ? `📞 Broker: ${l.broker}` : '',
+    ``,
+    `🏁 *DELIVERY*`,
+    `📌 ${l.dest}`,
+    ``,
+    `💵 Rate: ${fmt(l.gross)}`,
+    l.notes ? `⚠️ Notes: ${l.notes}` : '',
+    ``,
+    `Please reply *CONFIRM* when you are loaded ✅`,
+    ``,
+    `— Reliable Network Dispatch`,
+    `📧 ops@reliablenetwork.net`
+  ].filter(s => s !== undefined).join('\n');
+
+  const waPreview = document.getElementById('wa-preview');
+  if (waPreview) waPreview.value = wa;
+
+  const subjEl = document.getElementById('driver-email-subject');
+  const bodyEl = document.getElementById('driver-email-body');
+  if (subjEl) subjEl.value = `🚛 New Load — ${l.id} | ${l.origin} → ${l.dest} | ${fmt(l.gross)}`;
+  if (bodyEl) bodyEl.value = [
+    `Hi ${l.driverName.split(' ')[0]},`,
+    ``,
+    `You have been assigned a new load. Please review the details below and confirm.`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `LOAD DETAILS`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Load ID:      ${l.id}`,
+    `Date:         ${l.date}`,
+    `Broker:       ${l.broker || 'N/A'}`,
+    `Gross Rate:   ${fmt(l.gross)}`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `PICKUP`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Location:     ${l.origin}`,
+    `Date:         ${l.date}`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `DELIVERY`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Location:     ${l.dest}`,
+    l.notes ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSPECIAL INSTRUCTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${l.notes}` : '',
+    ``,
+    `Please reply to confirm you have received this load.`,
+    ``,
+    `— Reliable Network Operations`,
+    `ops@reliablenetwork.net | 24/7 Dispatch`
+  ].join('\n');
+
+  buildBrokerTemplate('en_route', l);
+};
+
+const brokerTemplates = {
+  en_route:   l => `Hi ${l.broker || 'Team'},\n\nUpdate for load ${l.id}.\n\nDriver ${l.driverName} is currently en route to the pickup location in ${l.origin}.\n\nEstimated arrival at shipper: Within 2 hours.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  loaded:     l => `Hi ${l.broker || 'Team'},\n\nLoad ${l.id} update — driver is loaded and departed.\n\nDriver:       ${l.driverName}\nDeparted:     ${l.origin}\nDestination:  ${l.dest}\n\nWe will keep you updated on progress.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  in_transit: l => `Hi ${l.broker || 'Team'},\n\nIn-transit update for load ${l.id}.\n\nDriver:       ${l.driverName}\nDestination:  ${l.dest}\nStatus:       On schedule\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  delay:      l => `Hi ${l.broker || 'Team'},\n\nProactive delay notification for load ${l.id}.\n\nDriver:         ${l.driverName}\nReason:         [specify reason]\nUpdated ETA:    [new time]\n\nWe apologize for any inconvenience.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  delivered:  l => `Hi ${l.broker || 'Team'},\n\nLoad ${l.id} has been delivered successfully.\n\nDriver:       ${l.driverName}\nDelivered to: ${l.dest}\nDate:         ${new Date().toLocaleDateString('en-US')}\n\nPOD available upon request.\n\nThank you for the business!\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  pod:        l => `Hi ${l.broker || 'Team'},\n\nProof of delivery for load ${l.id} is now available.\n\nDriver:   ${l.driverName}\nRoute:    ${l.origin} → ${l.dest}\nStatus:   Delivered ✓\n\nPlease confirm receipt.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`
+};
+
+function buildBrokerTemplate(key, load) {
+  if (!load) {
+    const id    = document.getElementById('notif-load-select')?.value;
+    const loads = DB.get('loads');
+    load = loads.find(x => x.id === id);
+    if (!load) return;
+  }
+  const el = document.getElementById('broker-preview');
+  if (el) el.value = brokerTemplates[key]?.(load) || '';
 }
 
-function dzHandleFile(file) {
+window.selectBrokerTmpl = function(el, key) {
+  document.querySelectorAll('.broker-tmpl').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  setText('broker-tmpl-title', el.querySelector('.bt-name')?.textContent || '');
+  buildBrokerTemplate(key, null);
+};
+
+window.sendWhatsApp = function() {
+  const num = document.getElementById('driver-wa-number')?.value.replace(/\D/g, '');
+  const msg = document.getElementById('wa-preview')?.value;
+  if (!num) { showToast('Please enter driver WhatsApp number'); return; }
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+};
+
+window.sendDriverEmail = function() {
+  const to      = document.getElementById('driver-email')?.value;
+  const subject = document.getElementById('driver-email-subject')?.value;
+  const body    = document.getElementById('driver-email-body')?.value;
+  if (!to) { showToast('Please enter driver email'); return; }
+  window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+};
+
+window.sendBrokerUpdate = function() {
+  const to      = document.getElementById('broker-email-to')?.value;
+  const subject = document.getElementById('broker-tmpl-title')?.textContent;
+  const body    = document.getElementById('broker-preview')?.value;
+  const id      = document.getElementById('notif-load-select')?.value;
+  if (!to) { showToast('Please enter broker email'); return; }
+  window.open(`mailto:${to}?subject=${encodeURIComponent('Load ' + id + ' — ' + subject)}&body=${encodeURIComponent(body)}`);
+};
+
+window.copyNotif = function(id) {
+  const el = document.getElementById(id);
+  if (el) navigator.clipboard.writeText(el.value).catch(() => {});
+  showToast('Copied to clipboard');
+};
+
+window.showNotifTab = function(name, el) {
+  document.querySelectorAll('.notif-tab').forEach(t   => t.classList.remove('active'));
+  document.querySelectorAll('.notif-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('notif-' + name)?.classList.add('active');
+  el.classList.add('active');
+};
+
+// ── New Load form — PDF drag-drop only (no save in Phase 1) ──────────────────
+// The form and PDF parser remain available so dispatchers can preview and
+// copy details into Google Sheets (the current production workflow).
+// The Save button is disabled and labelled accordingly.
+
+window.calcLoad = function() {
+  const g = parseFloat(document.getElementById('f-gross')?.value) || 0;
+  setText('c-gross', fmt(g));
+  setText('c-12',    fmt(g * 0.12));
+  setText('c-3',     fmt(g * 0.03));
+  setText('c-9',     fmt(g * 0.09));
+};
+
+window.clearForm = function() {
+  ['f-origin','f-dest','f-broker','f-brokerLoad','f-gross','f-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const dSel = document.getElementById('f-driver');
+  const tSel = document.getElementById('f-truck');
+  const sSel = document.getElementById('f-status');
+  if (dSel) dSel.value = '';
+  if (tSel) tSel.value = '';
+  if (sSel) sSel.value = 'Booked';
+  window.calcLoad();
+};
+
+// saveLoad intentionally disabled in Phase 1
+window.saveLoad = function() {
+  showToast('⚠ Saves are disabled in Phase 1 — enter this load in Google Sheets');
+};
+
+// ── PDF Drag-Drop (parse-only — populate form for manual entry into Sheets) ──
+
+window.dzDragOver  = e => { e.preventDefault(); document.getElementById('dropZone')?.classList.add('dz-over'); };
+window.dzDragLeave = () => document.getElementById('dropZone')?.classList.remove('dz-over');
+window.dzDrop      = function(e) {
+  e.preventDefault();
+  document.getElementById('dropZone')?.classList.remove('dz-over');
+  const file = e.dataTransfer.files[0];
+  if (file?.type === 'application/pdf') dzHandleFile(file);
+  else alert('Please drop a PDF file.');
+};
+
+window.dzHandleFile = function(file) {
   if (!file) return;
   const dz = document.getElementById('dropZone');
+  if (!dz) return;
   dz.classList.add('dz-busy');
-  document.getElementById('dzDefault').style.display = 'none';
+  document.getElementById('dzDefault').style.display    = 'none';
   document.getElementById('dzProcessing').style.display = 'flex';
-  document.getElementById('dzSuccess').style.display = 'none';
+  document.getElementById('dzSuccess').style.display    = 'none';
 
   const steps = [
-    [500, 'Reading PDF structure...', 'Locating load details'],
-    [1100, 'Extracting load data...', 'Found origin & destination'],
-    [1700, 'Parsing rate information...', 'Calculating commission'],
-    [2300, 'Identifying broker details...', 'Matching load number'],
+    [500,  'Reading PDF structure…',     'Locating load details'],
+    [1100, 'Extracting load data…',      'Found origin & destination'],
+    [1700, 'Parsing rate information…',  'Calculating commission'],
+    [2300, 'Identifying broker details…','Matching load number'],
   ];
-  steps.forEach(([delay, text, sub]) => {
-    setTimeout(() => {
-      document.getElementById('dzProcText').textContent = text;
-      document.getElementById('dzProcSub').textContent = sub;
-    }, delay);
-  });
+  steps.forEach(([delay, text, sub]) => setTimeout(() => {
+    setText('dzProcText', text);
+    setText('dzProcSub',  sub);
+  }, delay));
 
   setTimeout(() => {
     const reader = new FileReader();
-    reader.onload = async (ev) => {
+    reader.onload = async ev => {
       const base64 = ev.target.result.split(',')[1];
       await dzParseWithAI(base64);
     };
     reader.readAsDataURL(file);
   }, 2600);
-}
+};
 
 async function dzParseWithAI(base64) {
   try {
@@ -602,239 +742,96 @@ async function dzParseWithAI(base64) {
 
 IDENTIFY THE BROKER FIRST then apply the correct rules:
 
-HUB GROUP (has "Hub Group" logo/text):
-- loadId = number next to "Load #" (e.g. 2492203)
-- brokerName = "Hub Group"
-- brokerContact = contact name shown (e.g. Tania Wain)
-- brokerPhone = phone number listed
-- brokerEmail = email address listed
-- origin = PU 1 full address, city, state
-- destination = DEL2 full address, city, state
-- pickupDate = PU 1 date in YYYY-MM-DD format
-- deliveryDate = DEL date in YYYY-MM-DD format
-- grossRate = NUMBER only from "Total Carrier Pay" (strip $ and commas)
-- commodity = "Commodity" field value
-- equipment = "Trailer" field value
-- miles = "Miles" field value as number
+HUB GROUP: loadId=Load#, brokerName="Hub Group", origin=PU1 address+city+state, destination=DEL2 address+city+state, pickupDate=PU1 date YYYY-MM-DD, deliveryDate=DEL date YYYY-MM-DD, grossRate=Total Carrier Pay (number only)
 
-KINGPOST (has "Kingpost" text):
-- loadId = number next to "Load Confirmation" or "Order:" (e.g. 0163572)
-- brokerName = "Kingpost"
-- brokerPhone = phone at top
-- origin = PU 1 full address, city, state
-- destination = SO 2 or DEL full address, city, state
-- pickupDate = PU 1 date in YYYY-MM-DD format
-- deliveryDate = SO/DEL date in YYYY-MM-DD format
-- grossRate = NUMBER only from "Total Carrier Pay" (strip $ and commas)
-- commodity = "Commodity" field
-- miles = "Miles" field as number
+KINGPOST: loadId=Load Confirmation or Order# number, brokerName="Kingpost", origin=PU1, destination=SO2 or DEL, grossRate=Total Carrier Pay (number only)
 
-LONGSHIP (has "LONGSHIP" or plus sign logo):
-- loadId = number next to "LS PO#" (e.g. 636536)
-- brokerName = "Longship"
-- brokerPhone = phone at top
-- brokerEmail = email at top
-- origin = pickup Shed name + city + state + physical address
-- destination = Consignee name + city + state + physical address
-- pickupDate = pickup date in YYYY-MM-DD format
-- deliveryDate = delivery date in YYYY-MM-DD format
-- grossRate = NUMBER only from "Estimated Rate (To The Truck)" (strip $ and commas)
-- commodity = Commodities field
-- equipment = Trailer type
-- miles = Miles field as number
+LONGSHIP: loadId=LS PO#, brokerName="Longship", origin=pickup Shed+city+state, destination=Consignee+city+state, grossRate=Estimated Rate To The Truck (number only)
 
-SYNCHROGISTICS (has "SYNCHROGISTICS" text):
-- loadId = number next to "Load Number:" (e.g. 587369)
-- brokerName = "Synchrogistics"
-- brokerEmail = email shown
-- origin = Shipper Pickup name + address + city + state
-- destination = Consignee Delivery name + address + city + state
-- pickupDate = Expected Date at pickup in YYYY-MM-DD
-- deliveryDate = Expected Date at delivery in YYYY-MM-DD
-- grossRate = NUMBER only from "Net Freight Charges" or "Total Cost" (strip USD $ commas)
-- commodity = Commodity Description
-- equipment = Equipment Type
-- miles = Distance (Miles) as number
+SYNCHROGISTICS: loadId=Load Number, brokerName="Synchrogistics", origin=Shipper Pickup, destination=Consignee Delivery, grossRate=Net Freight Charges or Total Cost (number only)
 
-UBER FREIGHT (has "Uber Freight" or "uber" text):
-- loadId = number next to "Load Number" (e.g. 8657384312)
-- brokerName = "Uber Freight"
-- brokerPhone = "844-822-UBER"
-- brokerEmail = "freight-carrier@uber.com"
-- origin = Shipper name + city + state
-- destination = Consignee/Delivery name + city + state
-- pickupDate = pickup date in YYYY-MM-DD format
-- deliveryDate = delivery date in YYYY-MM-DD format
-- grossRate = NUMBER only from "Agreed upon price" or "Line Haul" (strip $ commas)
-- commodity = Commodity field
-- equipment = Equipment field
-- miles = Distance field as number
+UBER FREIGHT: loadId=Load Number, brokerName="Uber Freight", origin=Shipper+city+state, destination=Consignee+city+state, grossRate=Agreed upon price or Line Haul (number only)
 
-ANY OTHER BROKER:
-- loadId = first number found after: Load #, Load Number, PO #, Order #, Confirmation #, Ref #
-- brokerName = largest company name at top (NOT the carrier — carrier is DYLAND TRUCKING INC)
-- grossRate = NUMBER from: Total Carrier Pay, Carrier Freight Pay, Net Freight Charges, Agreed upon price, Line Haul, Flat Rate, Estimated Rate (strip $, USD, commas)
-- origin = pickup city and state
-- destination = delivery city and state
+ANY OTHER BROKER: loadId=first number after Load# / PO# / Order# / Ref#, brokerName=largest company name at top (NEVER "DYLAND TRUCKING INC" — that is the carrier), grossRate=Total Carrier Pay or Line Haul or Flat Rate (number only)
 
-IMPORTANT: 
-- NEVER use "DYLAND TRUCKING INC" as the broker name — that is the carrier
-- All dates must be in YYYY-MM-DD format
-- grossRate must be a NUMBER only, no symbols
-- miles must be a NUMBER only
+Rules: dates YYYY-MM-DD, grossRate NUMBER only (no $ or commas), miles NUMBER only.
 
-Return exactly this JSON:
-{
-  "brokerName": "",
-  "loadId": "",
-  "brokerPhone": "",
-  "brokerEmail": "",
-  "brokerContact": "",
-  "origin": "",
-  "pickupAddress": "",
-  "pickupDate": "",
-  "destination": "",
-  "deliveryAddress": "",
-  "deliveryDate": "",
-  "grossRate": 0,
-  "miles": 0,
-  "commodity": "",
-  "equipment": "",
-  "weight": "",
-  "notes": ""
-}` }
+Return exactly:
+{"brokerName":"","loadId":"","brokerPhone":"","brokerEmail":"","brokerContact":"","origin":"","pickupAddress":"","pickupDate":"","destination":"","deliveryAddress":"","deliveryDate":"","grossRate":0,"miles":0,"commodity":"","equipment":"","weight":"","notes":""}` }
           ]
         }]
       })
     });
     const data = await response.json();
-    const raw = data.content.map(b => b.text || '').join('').trim();
+    const raw  = data.content.map(b => b.text || '').join('').trim();
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
     dzFillForm(parsed);
   } catch (err) {
-    // Fallback demo data when running locally without API
     dzFillForm({
-      brokerName: 'Total Express Logistics',
-      brokerLoadNum: 'TE-' + Math.floor(Math.random()*90000+10000),
-      brokerPhone: '800-555-0111',
-      brokerEmail: 'dispatch@totalexpress.com',
-      origin: 'Tampa, FL',
-      pickupAddress: '1234 Industrial Blvd, Tampa, FL 33601',
-      pickupDate: new Date().toISOString().split('T')[0],
-      destination: 'Atlanta, GA',
-      deliveryAddress: '5678 Commerce Dr, Atlanta, GA 30301',
-      deliveryDate: new Date(Date.now()+86400000).toISOString().split('T')[0],
-      grossRate: 3500,
-      miles: 456,
-      commodity: 'General Freight',
-      equipment: "Dry Van 53'",
-      notes: 'No touch freight. Check in at gate B.'
+      brokerName: 'Demo Broker', loadId: 'DEMO-001',
+      origin: 'Tampa, FL', destination: 'Atlanta, GA', grossRate: 3500,
+      notes: 'Demo data — PDF parse failed'
     });
   }
 }
 
 function dzFillForm(data) {
   const dz = document.getElementById('dropZone');
-  dz.classList.remove('dz-busy');
-  dz.classList.add('dz-done');
+  if (dz) { dz.classList.remove('dz-busy'); dz.classList.add('dz-done'); }
   document.getElementById('dzProcessing').style.display = 'none';
-  document.getElementById('dzSuccess').style.display = 'flex';
+  document.getElementById('dzSuccess').style.display    = 'flex';
 
   const fill = (id, val) => {
     const el = document.getElementById(id);
-    if (el && val && val !== '' && val !== 0) {
-      el.value = val;
-      el.classList.add('auto-filled');
-    }
+    if (el && val && val !== 0) { el.value = val; el.classList.add('auto-filled'); }
   };
 
-  // Core load fields
-  fill('f-broker', data.brokerName);
-  fill('f-loadId', data.loadId || data.brokerLoadNum);
-  fill('f-origin', data.origin || data.pickupAddress);
-  fill('f-dest', data.destination || data.deliveryAddress);
-  fill('f-gross', data.grossRate);
-  fill('f-notes', [
+  fill('f-broker',    data.brokerName);
+  fill('f-loadId',    data.loadId || data.brokerLoadNum);
+  fill('f-origin',    data.origin || data.pickupAddress);
+  fill('f-dest',      data.destination || data.deliveryAddress);
+  fill('f-gross',     data.grossRate);
+  fill('f-notes',     [
     data.notes,
-    data.commodity ? 'Commodity: ' + data.commodity : '',
-    data.equipment ? 'Equipment: ' + data.equipment : '',
-    data.weight ? 'Weight: ' + data.weight : '',
-    data.brokerContact ? 'Contact: ' + data.brokerContact : '',
-    data.brokerPhone ? 'Broker ph: ' + data.brokerPhone : '',
-    data.brokerEmail ? 'Broker email: ' + data.brokerEmail : '',
-    data.miles ? 'Miles: ' + data.miles : '',
-    data.deliveryDate ? 'Del date: ' + data.deliveryDate : '',
-    data.deliveryAddress ? 'Del address: ' + data.deliveryAddress : ''
+    data.commodity  ? 'Commodity: '     + data.commodity    : '',
+    data.equipment  ? 'Equipment: '     + data.equipment    : '',
+    data.weight     ? 'Weight: '        + data.weight       : '',
+    data.brokerContact ? 'Contact: '    + data.brokerContact : '',
+    data.brokerPhone   ? 'Broker ph: '  + data.brokerPhone  : '',
+    data.brokerEmail   ? 'Broker email: '+ data.brokerEmail : '',
+    data.miles      ? 'Miles: '         + data.miles        : '',
+    data.deliveryDate  ? 'Del date: '   + data.deliveryDate : '',
   ].filter(Boolean).join(' | '));
 
   if (data.pickupDate) fill('f-date', data.pickupDate);
+  window.calcLoad();
 
-  // Auto-calculate commissions
-  calcLoad();
+  const summary = [
+    data.loadId     ? 'Load #: ' + data.loadId    : '',
+    data.brokerName ? 'Broker: ' + data.brokerName : '',
+    data.origin     ? 'From: '   + data.origin     : '',
+    data.destination? 'To: '     + data.destination : '',
+    data.grossRate  ? 'Rate: $'  + data.grossRate  : '',
+  ].filter(Boolean).join(' · ');
 
-  // Show what was extracted in a summary
-  const summary = [];
-  if (data.loadId) summary.push('Load #: ' + data.loadId);
-  if (data.brokerName) summary.push('Broker: ' + data.brokerName);
-  if (data.origin) summary.push('From: ' + data.origin);
-  if (data.destination) summary.push('To: ' + data.destination);
-  if (data.grossRate) summary.push('Rate: $' + data.grossRate);
+  const subEl = document.querySelector('#dzSuccess .dz-success-sub');
+  if (subEl && summary) subEl.textContent = summary;
 
-  const successEl = document.getElementById('dzSuccess');
-  if (successEl && summary.length) {
-    successEl.querySelector('.dz-success-sub').textContent = summary.join(' · ');
-  }
-
-  // Scroll to form
-  setTimeout(() => {
-    document.querySelector('.card').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 300);
+  // Phase 1 note — remind dispatcher to enter into Sheets
+  showToast('✓ PDF parsed — enter this load in Google Sheets to save');
 }
 
-function dzReset() {
+window.dzReset = function() {
   const dz = document.getElementById('dropZone');
-  dz.className = 'drop-zone';
-  document.getElementById('dzDefault').style.display = 'block';
+  if (dz) dz.className = 'drop-zone';
+  document.getElementById('dzDefault').style.display    = 'block';
   document.getElementById('dzProcessing').style.display = 'none';
-  document.getElementById('dzSuccess').style.display = 'none';
+  document.getElementById('dzSuccess').style.display    = 'none';
   document.querySelectorAll('.fi.auto-filled').forEach(el => el.classList.remove('auto-filled'));
-}
+};
 
-// ── Modal System ──
-function openModal(title, bodyHtml, onSave) {
-  let modal = document.getElementById('crudModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'crudModal';
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-      <div class="modal-box">
-        <div class="modal-head">
-          <span class="modal-title" id="modalTitle"></span>
-          <button class="modal-close" onclick="closeModal()">✕</button>
-        </div>
-        <div class="modal-body" id="modalBody"></div>
-        <div class="modal-foot">
-          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-          <button class="btn btn-primary" id="modalSaveBtn">Save changes</button>
-        </div>
-      </div>`;
-    document.body.appendChild(modal);
-    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-  }
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = bodyHtml;
-  document.getElementById('modalSaveBtn').onclick = onSave;
-  modal.classList.add('modal-open');
-  document.body.style.overflow = 'hidden';
-}
+// ── Toast ─────────────────────────────────────────────────────────────────────
 
-function closeModal() {
-  const modal = document.getElementById('crudModal');
-  if (modal) { modal.classList.remove('modal-open'); document.body.style.overflow = ''; }
-}
-
-// ── Toast Notification ──
 function showToast(msg) {
   let toast = document.getElementById('appToast');
   if (!toast) {
@@ -845,254 +842,5 @@ function showToast(msg) {
   }
   toast.textContent = msg;
   toast.classList.add('toast-show');
-  setTimeout(() => toast.classList.remove('toast-show'), 3000);
-}
-
-// ── NOTIFICATIONS MODULE ──
-
-// Add to pageTitles
-pageTitles['notifications'] = ['Notifications', 'Send load details to drivers and brokers'];
-
-function renderNotifications() {
-  // Populate load selector
-  const loads = DB.get('loads');
-  const sel = document.getElementById('notif-load-select');
-  sel.innerHTML = '<option value="">— Choose a load —</option>';
-  loads.forEach(l => {
-    sel.add(new Option(`${l.id} — ${l.origin} → ${l.dest} — ${l.driverName}`, l.id));
-  });
-}
-
-function onNotifLoadSelect() {
-  const id = document.getElementById('notif-load-select').value;
-  if (!id) {
-    document.getElementById('notif-load-info').style.display = 'none';
-    document.getElementById('notif-load-badge').textContent = 'No load selected';
-    return;
-  }
-
-  const loads = DB.get('loads');
-  const drivers = DB.get('drivers');
-  const l = loads.find(x => x.id === id);
-  if (!l) return;
-
-  const driver = drivers.find(d => d.id === l.driverId) || {};
-
-  // Show load info bar
-  document.getElementById('notif-load-info').style.display = 'block';
-  document.getElementById('notif-load-badge').textContent = l.id + ' — ' + l.status;
-  document.getElementById('ni-driver').textContent = l.driverName;
-  document.getElementById('ni-route').textContent = l.origin + ' → ' + l.dest;
-  document.getElementById('ni-broker').textContent = l.broker || '—';
-  document.getElementById('ni-rate').textContent = fmt(l.gross);
-
-  // Pre-fill driver contact info
-  if (driver.phone) document.getElementById('driver-wa-number').value = driver.phone;
-  if (driver.email) document.getElementById('driver-email').value = driver.email;
-
-  // Build WhatsApp message
-  const wa = `🚛 *RELIABLE NETWORK — New Load Assigned*
-
-📋 Load ID: ${l.id}
-👤 Driver: ${l.driverName}
-🚛 Truck: ${l.truckId || 'TBD'}
-
-📍 *PICKUP*
-📌 ${l.origin}
-📅 Date: ${l.date}
-${l.broker ? '📞 Broker: ' + l.broker : ''}
-
-🏁 *DELIVERY*
-📌 ${l.dest}
-
-💵 Rate: ${fmt(l.gross)}
-${l.notes ? '⚠️ Notes: ' + l.notes : ''}
-
-Please reply *CONFIRM* when you are loaded ✅
-
-— Reliable Network Dispatch
-📧 ops@reliablenetwork.net`;
-
-  document.getElementById('wa-preview').value = wa;
-
-  // Build driver email
-  document.getElementById('driver-email-subject').value = `🚛 New Load — ${l.id} | ${l.origin} → ${l.dest} | ${fmt(l.gross)}`;
-
-  const emailBody = `Hi ${l.driverName.split(' ')[0]},
-
-You have been assigned a new load. Please review the details below and confirm.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LOAD DETAILS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Load ID:      ${l.id}
-Date:         ${l.date}
-Broker:       ${l.broker || 'N/A'}
-Gross Rate:   ${fmt(l.gross)}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PICKUP
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Location:     ${l.origin}
-Date:         ${l.date}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DELIVERY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Location:     ${l.dest}
-
-${l.notes ? '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSPECIAL INSTRUCTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' + l.notes : ''}
-
-Please reply to confirm you have received this load.
-
-— Reliable Network Operations
-ops@reliablenetwork.net | 24/7 Dispatch`;
-
-  document.getElementById('driver-email-body').value = emailBody;
-
-  // Build default broker template
-  buildBrokerTemplate('en_route', l);
-}
-
-// ── Broker templates ──
-const brokerTemplates = {
-  en_route: (l) => `Hi ${l.broker || 'Team'},
-
-Update for load ${l.id}.
-
-Driver ${l.driverName} is currently en route to the pickup location in ${l.origin}.
-
-Estimated arrival at shipper: Within 2 hours.
-
-Please let us know if you need anything further.
-
-— Reliable Network
-ops@reliablenetwork.net | 24/7 Dispatch`,
-
-  loaded: (l) => `Hi ${l.broker || 'Team'},
-
-Load ${l.id} update — driver is loaded and departed.
-
-Driver:       ${l.driverName}
-Departed:     ${l.origin}
-Destination:  ${l.dest}
-
-We will keep you updated on progress.
-
-— Reliable Network
-ops@reliablenetwork.net | 24/7 Dispatch`,
-
-  in_transit: (l) => `Hi ${l.broker || 'Team'},
-
-In-transit update for load ${l.id}.
-
-Driver:       ${l.driverName}
-Destination:  ${l.dest}
-Status:       On schedule
-
-We will notify you upon delivery.
-
-— Reliable Network
-ops@reliablenetwork.net | 24/7 Dispatch`,
-
-  delay: (l) => `Hi ${l.broker || 'Team'},
-
-Proactive notification of a delay on load ${l.id}.
-
-Driver:         ${l.driverName}
-Reason:         [Please specify reason]
-Original ETA:   [Original time]
-Updated ETA:    [New time]
-
-We apologize for any inconvenience and will keep you updated.
-
-— Reliable Network
-ops@reliablenetwork.net | 24/7 Dispatch`,
-
-  delivered: (l) => `Hi ${l.broker || 'Team'},
-
-Load ${l.id} has been delivered successfully.
-
-Driver:       ${l.driverName}
-Delivered to: ${l.dest}
-Date:         ${new Date().toLocaleDateString('en-US')}
-
-POD is available upon request.
-
-Thank you for the business!
-
-— Reliable Network
-ops@reliablenetwork.net | 24/7 Dispatch`,
-
-  pod: (l) => `Hi ${l.broker || 'Team'},
-
-Proof of delivery for load ${l.id} is now available.
-
-Driver:   ${l.driverName}
-Route:    ${l.origin} → ${l.dest}
-Status:   Delivered ✓
-
-Please confirm receipt and let us know if anything else is needed.
-
-— Reliable Network
-ops@reliablenetwork.net | 24/7 Dispatch`
-};
-
-function buildBrokerTemplate(key, load) {
-  if (!load) {
-    const id = document.getElementById('notif-load-select').value;
-    const loads = DB.get('loads');
-    load = loads.find(x => x.id === id);
-    if (!load) return;
-  }
-  document.getElementById('broker-preview').value = brokerTemplates[key](load);
-}
-
-function selectBrokerTmpl(el, key) {
-  document.querySelectorAll('.broker-tmpl').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('broker-tmpl-title').textContent = el.querySelector('.bt-name').textContent;
-  buildBrokerTemplate(key, null);
-}
-
-// ── Send functions ──
-function sendWhatsApp() {
-  const num = document.getElementById('driver-wa-number').value.replace(/\D/g, '');
-  const msg = document.getElementById('wa-preview').value;
-  if (!num) { showToast('Please enter driver WhatsApp number'); return; }
-  if (!msg) { showToast('Please select a load first'); return; }
-  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
-  showToast('Opening WhatsApp...');
-}
-
-function sendDriverEmail() {
-  const to = document.getElementById('driver-email').value;
-  const subject = document.getElementById('driver-email-subject').value;
-  const body = document.getElementById('driver-email-body').value;
-  if (!to) { showToast('Please enter driver email'); return; }
-  window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
-  showToast('Opening email client...');
-}
-
-function sendBrokerUpdate() {
-  const to = document.getElementById('broker-email-to').value;
-  const subject = document.getElementById('broker-tmpl-title').textContent;
-  const body = document.getElementById('broker-preview').value;
-  const id = document.getElementById('notif-load-select').value;
-  if (!to) { showToast('Please enter broker email'); return; }
-  window.open(`mailto:${to}?subject=${encodeURIComponent('Load ' + id + ' Update — ' + subject)}&body=${encodeURIComponent(body)}`);
-  showToast('Opening email client...');
-}
-
-function copyNotif(id) {
-  const text = document.getElementById(id).value;
-  navigator.clipboard.writeText(text).catch(() => {});
-  showToast('Copied to clipboard');
-}
-
-function showNotifTab(name, el) {
-  document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.notif-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('notif-' + name).classList.add('active');
-  el.classList.add('active');
+  setTimeout(() => toast.classList.remove('toast-show'), 3500);
 }
