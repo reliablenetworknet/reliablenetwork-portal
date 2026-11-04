@@ -44,7 +44,11 @@ window.handleForgotPassword = async function () {
 
   // Fire-and-forget — Auth.resetPasswordForEmail never throws and never
   // returns a value, so the UI cannot distinguish found vs not-found.
+  // Any error is logged to the console by Auth.resetPasswordForEmail itself
+  // (status/code only — no passwords or tokens logged here).
+  console.log('[RN] Forgot password requested for domain:', email.split('@')[1] || '(no domain)');
   await Auth.resetPasswordForEmail(email);
+  console.log('[RN] Forgot password flow complete — check console above for Supabase result');
 
   if (errEl) {
     errEl.style.color = '#16a34a';
@@ -63,11 +67,24 @@ window.handleForgotPassword = async function () {
 const fmt  = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtK = n => '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
+// ── XSS guard — escape all user/DB-controlled strings before innerHTML ────────
+// Apply to every string that comes from Supabase or user input before it is
+// interpolated into an HTML template literal.
+// Numeric values, pill CSS class names, and static literals do NOT need escaping.
+const _escMap = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => _escMap[c]);
+}
+
 function pillClass(s) {
-  if (s === 'Settled' || s === 'Delivered') return 'pill-paid';
-  if (s === 'In Transit' || s === 'Dispatched') return 'pill-transit';
-  if (s === 'Cancelled') return 'pill-expired';
-  return 'pill-pending'; // Booked, Invoiced, anything else
+  // v3.5 operational statuses — no remapping
+  if (s === 'Delivered')                                      return 'pill-paid';
+  if (s === 'Dispatched' || s === 'In Transit' ||
+      s === 'At Shipper' || s === 'Loaded' ||
+      s === 'At Receiver')                                    return 'pill-transit';
+  if (s === 'Canceled' || s === 'Issue')                      return 'pill-expired';
+  return 'pill-pending'; // Booked, anything else
 }
 
 // ── Auth flow ─────────────────────────────────────────────────────────────────
@@ -187,11 +204,11 @@ function populateDriverDropdowns() {
   const fsel = document.getElementById('filterDriver');
   if (sel) {
     sel.innerHTML = '<option value="">Select driver…</option>';
-    drivers.forEach(d => sel.add(new Option(d.name + (d.truck ? ' — ' + d.truck : ''), d.id)));
+    drivers.forEach(d => sel.add(new Option(d.name || d.id, d.id)));
   }
   if (fsel) {
     fsel.innerHTML = '<option value="">All drivers</option>';
-    drivers.forEach(d => fsel.add(new Option(d.name, d.id)));
+    drivers.forEach(d => fsel.add(new Option(d.name || d.id, d.id)));
   }
 }
 
@@ -200,9 +217,12 @@ function populateTruckDropdown() {
   const sel = document.getElementById('f-truck');
   if (sel) {
     sel.innerHTML = '<option value="">Select truck…</option>';
-    trucks.forEach(t => sel.add(new Option(
-      t.id + (t.make ? ' — ' + [t.year, t.make, t.model].filter(Boolean).join(' ') : ''), t.id
-    )));
+    trucks.forEach(t => {
+      // value = UUID (relational key); label = unitNumber + make/model for humans
+      const label = [t.unitNumber, t.make && [t.year, t.make, t.model].filter(Boolean).join(' ')]
+        .filter(Boolean).join(' — ');
+      sel.add(new Option(label || t.id, t.id));  // t.id = UUID
+    });
   }
 }
 
@@ -253,71 +273,94 @@ function dashboard() {
   const now     = new Date();
   const mo = now.getMonth(), yr = now.getFullYear();
 
+  // Build driver lookup: id → name
+  const driverMap = {};
+  drivers.forEach(d => { driverMap[d.id] = d.name || d.id; });
+
   const thisMonth = loads.filter(l => {
     const d = new Date(l.date);
     return d.getMonth() === mo && d.getFullYear() === yr;
   });
 
   const gross = thisMonth.reduce((s, l) => s + l.gross, 0);
-  const net   = thisMonth.reduce((s, l) => s + l.net9,  0);
 
-  setText('kpi-drivers', drivers.filter(d => d.status === 'Active').length);
+  // isActive is derived in supabase.js from archived_at / termination_date
+  // (v3.5 has no status column on drivers)
+  setText('kpi-drivers', drivers.filter(d => d.isActive !== false).length);
   setText('kpi-loads',   thisMonth.length);
   setText('kpi-gross',   fmtK(gross));
-  setText('kpi-net',     fmtK(net));
   setText('kpi-month',   now.toLocaleString('default', { month: 'long' }) + ' ' + yr);
+
+  // Hide the net/commission KPI card — financial splits come from DB, not frontend
+  const netCard = document.getElementById('kpi-net-card');
+  if (netCard) {
+    netCard.style.display = 'none';
+  }
 
   const list   = document.getElementById('recentLoadsList');
   const recent = loads.slice(0, 6);
   if (!list) return;
   if (!recent.length) {
-    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">No loads yet</div>';
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">No loads found</div>';
     return;
   }
-  list.innerHTML = recent.map(l => `
+  list.innerHTML = recent.map(l => {
+    const route      = [l.originCity, l.originState].filter(Boolean).join(', ')
+                     + ' → '
+                     + [l.destCity, l.destState].filter(Boolean).join(', ');
+    const driverName = (driverMap[l.driverId] || '—').split(' ')[0];
+    return `
     <div class="load-mini">
-      <span class="lm-id">${l.id}</span>
-      <span class="lm-route">${l.origin} → ${l.dest}</span>
-      <span class="lm-driver">${(l.driverName || '').split(' ')[0]}</span>
-      <span class="lm-net">${fmt(l.net9)}</span>
-      <span class="pill ${pillClass(l.status)}">${l.status}</span>
-    </div>`).join('');
+      <span class="lm-id">${esc(l.id)}</span>
+      <span class="lm-route">${esc(route) || '—'}</span>
+      <span class="lm-driver">${esc(driverName)}</span>
+      <span class="lm-net">${fmt(l.gross)}</span>
+      <span class="pill ${pillClass(l.status)}">${esc(l.status)}</span>
+    </div>`;
+  }).join('');
 }
 
 // ── All Loads (read-only table) ───────────────────────────────────────────────
 // Edit / delete controls are hidden in Phase 1 — no write operations.
 
 function renderLoads() {
-  const loads = DB.get('loads');
+  const loads   = DB.get('loads');
+  const drivers = DB.get('drivers');
   const df = document.getElementById('filterDriver')?.value || '';
   const sf = document.getElementById('filterStatus')?.value  || '';
   const filtered = loads.filter(l => (!df || l.driverId === df) && (!sf || l.status === sf));
+
+  // Build driver lookup for display
+  const driverMap = {};
+  drivers.forEach(d => { driverMap[d.id] = d.name || d.id; });
 
   const tbody = document.getElementById('loadsBody');
   if (!tbody) return;
 
   tbody.innerHTML = filtered.length
-    ? filtered.map(l => `
-      <tr>
-        <td class="mono">${l.id}</td>
-        <td>${l.date}</td>
-        <td>${l.driverName}</td>
-        <td>${l.origin} → ${l.dest}</td>
-        <td>${l.broker || '—'}</td>
-        <td class="mono">${fmt(l.gross)}</td>
-        <td class="mono c-navy">${fmt(l.pct12)}</td>
-        <td class="mono c-amber">${fmt(l.pct3)}</td>
-        <td class="net-col">${fmt(l.net9)}</td>
-        <td><span class="pill ${pillClass(l.status)}">${l.status}</span></td>
-        <td><span style="font-size:11px;color:var(--gray-400);font-style:italic">read-only</span></td>
-      </tr>`).join('')
-    : '<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--gray-400)">No loads found</td></tr>';
+    ? filtered.map(l => {
+        const route      = [l.originCity, l.originState].filter(Boolean).join(', ')
+                         + ' → '
+                         + [l.destCity, l.destState].filter(Boolean).join(', ');
+        const driverName = driverMap[l.driverId] || l.driverId || '—';
+        return `
+        <tr>
+          <td class="mono">${esc(l.id)}</td>
+          <td>${esc(l.date)}</td>
+          <td>${esc(driverName)}</td>
+          <td>${esc(route) || '—'}</td>
+          <td>${esc(l.broker) || '—'}</td>
+          <td class="mono">${fmt(l.gross)}</td>
+          <td><span class="pill ${pillClass(l.status)}">${esc(l.status)}</span></td>
+          <td><span style="font-size:11px;color:var(--gray-400);font-style:italic">read-only</span></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No loads found</td></tr>';
 
   const tg = filtered.reduce((s, l) => s + l.gross, 0);
-  const tn = filtered.reduce((s, l) => s + l.net9,  0);
   const summaryEl = document.getElementById('loadsSummary');
   if (summaryEl) summaryEl.innerHTML =
-    `${filtered.length} loads &nbsp;·&nbsp; Gross: ${fmt(tg)} &nbsp;·&nbsp; Your net: <strong style="color:var(--green)">${fmt(tn)}</strong>`;
+    `${filtered.length} loads &nbsp;·&nbsp; Gross: ${fmt(tg)}`;
 }
 window.renderLoads = renderLoads;
 
@@ -325,33 +368,48 @@ window.renderLoads = renderLoads;
 
 function renderDispatch() {
   const drivers = DB.get('drivers');
+  const trucks  = DB.get('trucks');
   const loads   = DB.get('loads');
   const grid    = document.getElementById('dispatchGrid');
   if (!grid) return;
 
+  if (!drivers.length) {
+    grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--gray-400);font-size:13px">No drivers found</div>';
+    return;
+  }
+
+  // Build truck lookup: UUID → unitNumber for display
+  const truckMap = Object.fromEntries(trucks.map(t => [t.id, t.unitNumber || t.id]));
+
+  // Active statuses that mean the driver is on a load
+  const activeStatuses = new Set(['Dispatched','At Shipper','Loaded','In Transit','At Receiver']);
+
   grid.innerHTML = drivers.map(d => {
-    const active   = loads.find(l => l.driverId === d.id && l.status === 'In Transit');
-    const initials = d.name.split(' ').map(w => w[0]).join('').slice(0, 2);
+    const initials = (d.name || '??').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const active   = loads.find(l => l.driverId === d.id && activeStatuses.has(l._rawStatus));
     if (active) {
+      const route      = [active.originCity, active.originState].filter(Boolean).join(', ')
+                       + ' → '
+                       + [active.destCity, active.destState].filter(Boolean).join(', ');
+      const truckLabel = active.truckId ? (truckMap[active.truckId] || 'Unknown unit') : '—';
       return `<div class="dispatch-card">
-        <div class="dc-avatar">${initials}</div>
-        <div class="dc-name">${d.name}</div>
-        <div class="dc-truck">${d.truck}</div>
-        <span class="pill pill-transit">In transit</span>
+        <div class="dc-avatar">${esc(initials)}</div>
+        <div class="dc-name">${esc(d.name)}</div>
+        <div class="dc-truck">Unit ${esc(truckLabel)}</div>
+        <span class="pill pill-transit">${esc(active.status)}</span>
         <div style="margin-top:12px">
-          <div class="dc-detail">Load: <span>${active.id}</span></div>
-          <div class="dc-detail">Route: <span>${active.origin} → ${active.dest}</span></div>
+          <div class="dc-detail">Load: <span>${esc(active.id)}</span></div>
+          <div class="dc-detail">Route: <span>${esc(route) || '—'}</span></div>
           <div class="dc-detail">Gross: <span>${fmt(active.gross)}</span></div>
-          <div class="dc-detail">Net 9%: <span style="color:var(--green)">${fmt(active.net9)}</span></div>
         </div>
         <div class="progress-bar"><div class="progress-fill" style="width:55%"></div></div>
         <div class="dc-eta">In progress</div>
       </div>`;
     }
     return `<div class="dispatch-card available">
-      <div class="dc-avatar" style="background:var(--green-light);color:var(--green)">${initials}</div>
-      <div class="dc-name">${d.name}</div>
-      <div class="dc-truck">${d.truck || '—'}</div>
+      <div class="dc-avatar" style="background:var(--green-light);color:var(--green)">${esc(initials)}</div>
+      <div class="dc-name">${esc(d.name)}</div>
+      <div class="dc-truck">&nbsp;</div>
       <span class="pill pill-active">Available</span>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-100);font-size:12px;color:var(--gray-400)">
         Ready for next load
@@ -370,15 +428,17 @@ function renderDrivers() {
   tbody.innerHTML = drivers.length
     ? drivers.map(d => `
       <tr>
-        <td class="mono">${d.id}</td>
-        <td><strong>${d.name}</strong></td>
-        <td>${d.phone}</td>
-        <td><span class="pill ${d.status === 'Active' ? 'pill-active' : 'pill-expired'}">${d.status}</span></td>
-        <td class="mono">${d.cdlExp || '—'}</td>
-        <td class="mono">${d.truck  || '—'}</td>
+        <td class="mono">${esc(d.id)}</td>
+        <td><strong>${esc(d.name) || '—'}</strong></td>
+        <td>${esc(d.phone) || '—'}</td>
+        <td>${esc(d.email) || '—'}</td>
+        <td><span class="pill ${d.isActive !== false ? 'pill-active' : 'pill-expired'}">${d.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+        <td class="mono">${esc(d.licenseNumber) || '—'}</td>
+        <td class="mono">${esc(d.licenseState)  || '—'}</td>
+        <td class="mono">${esc(d.licenseExpiry) || '—'}</td>
         <td><span style="font-size:11px;color:var(--gray-400);font-style:italic">read-only</span></td>
       </tr>`).join('')
-    : '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No drivers found</td></tr>';
+    : '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--gray-400)">No drivers found</td></tr>';
 }
 
 // ── Trucks (read-only) ────────────────────────────────────────────────────────
@@ -391,26 +451,43 @@ function renderTrucks() {
   tbody.innerHTML = trucks.length
     ? trucks.map(t => `
       <tr>
-        <td class="mono">${t.id}</td>
-        <td>${t.year}</td>
-        <td>${t.make} ${t.model}</td>
-        <td class="mono" style="font-size:11px">${t.vin || '—'}</td>
-        <td><span class="pill ${t.status === 'Active' ? 'pill-active' : 'pill-expired'}">${t.status}</span></td>
-        <td class="mono">${t.nextInspect || '—'}</td>
-        <td class="mono">${t.insExp      || '—'}</td>
+        <td class="mono">${esc(t.unitNumber) || '—'}</td>
+        <td>${esc(t.unitType) || '—'}</td>
+        <td>${esc(t.year) || '—'}</td>
+        <td>${esc([t.make, t.model].filter(Boolean).join(' ')) || '—'}</td>
+        <td class="mono" style="font-size:11px">${esc(t.vin) || '—'}</td>
+        <td class="mono">${esc(t.plate) || '—'}${t.plateState ? ' (' + esc(t.plateState) + ')' : ''}</td>
+        <td class="mono">${esc(t.plateExpiry) || '—'}</td>
+        <td><span class="pill ${t.isActive !== false ? 'pill-active' : 'pill-expired'}">${t.isActive !== false ? 'Active' : 'Archived'}</span></td>
         <td><span style="font-size:11px;color:var(--gray-400);font-style:italic">read-only</span></td>
       </tr>`).join('')
-    : '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No trucks found</td></tr>';
+    : '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--gray-400)">No trucks found</td></tr>';
 }
 
 // ── Financials ────────────────────────────────────────────────────────────────
 
 function renderFinancials() {
   const loads = DB.get('loads');
+
+  // Gross revenue only — financial splits (driver pay, fuel, net) come from
+  // DB service agreements and are not available in the frontend yet.
   setText('fin-gross', fmtK(loads.reduce((s, l) => s + l.gross, 0)));
-  setText('fin-12',    fmtK(loads.reduce((s, l) => s + l.pct12, 0)));
-  setText('fin-3',     fmtK(loads.reduce((s, l) => s + l.pct3,  0)));
-  setText('fin-9',     fmtK(loads.reduce((s, l) => s + l.net9,  0)));
+
+  // Hide any hard-coded split KPI elements if present
+  ['fin-12','fin-3','fin-9'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const card = el.closest('.kpi-card') || el.parentElement;
+      if (card) card.style.display = 'none';
+    }
+  });
+
+  // Show a note where split cards used to be
+  const splitsNote = document.getElementById('fin-splits-note');
+  if (splitsNote) {
+    splitsNote.style.display = '';
+    splitsNote.textContent = 'Driver pay splits and net calculations will be available once service agreements are configured in the database.';
+  }
 
   const year   = new Date().getFullYear();
   const months = ['January','February','March','April','May','June',
@@ -423,18 +500,12 @@ function renderFinancials() {
       const d = new Date(l.date);
       return d.getMonth() === i && d.getFullYear() === year;
     });
-    if (!ml.length) return `<tr><td>${m}</td><td colspan="5" style="color:var(--gray-300)">—</td></tr>`;
-    const g  = ml.reduce((s, l) => s + l.gross, 0);
-    const p12 = ml.reduce((s, l) => s + l.pct12, 0);
-    const p3  = ml.reduce((s, l) => s + l.pct3,  0);
-    const n9  = ml.reduce((s, l) => s + l.net9,  0);
+    if (!ml.length) return `<tr><td>${m}</td><td colspan="2" style="color:var(--gray-300)">—</td></tr>`;
+    const g = ml.reduce((s, l) => s + l.gross, 0);
     return `<tr>
       <td><strong>${m}</strong></td>
       <td>${ml.length}</td>
       <td class="mono">${fmt(g)}</td>
-      <td class="mono c-navy">${fmt(p12)}</td>
-      <td class="mono c-amber">${fmt(p3)}</td>
-      <td class="net-col">${fmt(n9)}</td>
     </tr>`;
   }).join('');
 }
@@ -448,16 +519,18 @@ function renderCompliance() {
   const items   = [];
 
   drivers.forEach(d => {
-    [['CDL License', d.cdlExp], ['Medical Card', d.medExp]].forEach(([doc, exp]) => {
+    // v3.5 columns: license_expiry (no medical_card_expiry in schema)
+    [['CDL / License', d.licenseExpiry]].forEach(([doc, exp]) => {
       if (!exp) return;
-      items.push({ name: d.name, doc, exp, days: Math.ceil((new Date(exp) - today) / 86400000) });
+      items.push({ name: d.name || d.id, doc, exp, days: Math.ceil((new Date(exp) - today) / 86400000) });
     });
   });
 
   trucks.forEach(t => {
-    [['Annual Inspection', t.nextInspect], ['Insurance', t.insExp]].forEach(([doc, exp]) => {
+    // v3.5 columns: plate_expiry (inspection/insurance tracked separately when available)
+    [['Plate Expiry', t.plateExpiry]].forEach(([doc, exp]) => {
       if (!exp) return;
-      const label = t.id + (t.make ? ' ' + t.make : '');
+      const label = (t.unitNumber || 'Unknown unit') + (t.make ? ' ' + t.make : '');
       items.push({ name: label, doc, exp, days: Math.ceil((new Date(exp) - today) / 86400000) });
     });
   });
@@ -475,12 +548,12 @@ function renderCompliance() {
                     item.days <= 30 ? item.days + 'd left' : 'OK';
         return `<div class="comp-item">
           <div class="comp-left">
-            <div class="comp-name">${item.name}</div>
-            <div class="comp-doc">${item.doc}</div>
+            <div class="comp-name">${esc(item.name)}</div>
+            <div class="comp-doc">${esc(item.doc)}</div>
           </div>
           <div class="comp-right">
-            <span class="comp-date">${item.exp}</span>
-            <span class="pill ${cls}">${txt}</span>
+            <span class="comp-date">${esc(item.exp)}</span>
+            <span class="pill ${cls}">${esc(txt)}</span>
           </div>
         </div>`;
       }).join('')
@@ -493,8 +566,17 @@ function renderNotifications() {
   const loads = DB.get('loads');
   const sel   = document.getElementById('notif-load-select');
   if (!sel) return;
+  const drivers = DB.get('drivers');
+  const driverMap = {};
+  drivers.forEach(d => { driverMap[d.id] = d.name || d.id; });
+
   sel.innerHTML = '<option value="">— Choose a load —</option>';
-  loads.forEach(l => sel.add(new Option(`${l.id} — ${l.origin} → ${l.dest} — ${l.driverName}`, l.id)));
+  loads.forEach(l => {
+    const route      = [l.originCity, l.originState].filter(Boolean).join(', ')
+                     + ' → ' + [l.destCity, l.destState].filter(Boolean).join(', ');
+    const driverName = driverMap[l.driverId] || l.driverId || '';
+    sel.add(new Option(`${l.id} — ${route}${driverName ? ' — ' + driverName : ''}`, l.id));
+  });
 }
 
 window.onNotifLoadSelect = function() {
@@ -510,12 +592,17 @@ window.onNotifLoadSelect = function() {
   const l       = loads.find(x => x.id === id);
   if (!l) return;
   const driver = drivers.find(d => d.id === l.driverId) || {};
+  const driverName = driver.name || l.driverId || '—';
+
+  const route = [l.originCity, l.originState].filter(Boolean).join(', ')
+              + ' → '
+              + [l.destCity, l.destState].filter(Boolean).join(', ');
 
   const info = document.getElementById('notif-load-info');
   if (info) info.style.display = 'block';
   setText('notif-load-badge', l.id + ' — ' + l.status);
-  setText('ni-driver', l.driverName);
-  setText('ni-route',  l.origin + ' → ' + l.dest);
+  setText('ni-driver', driverName);
+  setText('ni-route',  route || '—');
   setText('ni-broker', l.broker || '—');
   setText('ni-rate',   fmt(l.gross));
 
@@ -524,20 +611,27 @@ window.onNotifLoadSelect = function() {
   if (waEl && driver.phone)  waEl.value = driver.phone;
   if (emEl && driver.email)  emEl.value = driver.email;
 
+  const trucks     = DB.get('trucks');
+  const truckMap   = Object.fromEntries(trucks.map(t => [t.id, t.unitNumber || t.id]));
+  const truckLabel = l.truckId ? (truckMap[l.truckId] || 'Unknown unit') : 'TBD';
+
+  const pickup   = [l.originCity, l.originState].filter(Boolean).join(', ') || '—';
+  const delivery = [l.destCity,   l.destState  ].filter(Boolean).join(', ') || '—';
+
   const wa = [
     `🚛 *RELIABLE NETWORK — New Load Assigned*`,
     ``,
     `📋 Load ID: ${l.id}`,
-    `👤 Driver: ${l.driverName}`,
-    `🚛 Truck: ${l.truckId || 'TBD'}`,
+    `👤 Driver: ${driverName}`,
+    `🚛 Truck: ${truckLabel}`,
     ``,
     `📍 *PICKUP*`,
-    `📌 ${l.origin}`,
+    `📌 ${pickup}`,
     `📅 Date: ${l.date}`,
     l.broker ? `📞 Broker: ${l.broker}` : '',
     ``,
     `🏁 *DELIVERY*`,
-    `📌 ${l.dest}`,
+    `📌 ${delivery}`,
     ``,
     `💵 Rate: ${fmt(l.gross)}`,
     l.notes ? `⚠️ Notes: ${l.notes}` : '',
@@ -553,9 +647,10 @@ window.onNotifLoadSelect = function() {
 
   const subjEl = document.getElementById('driver-email-subject');
   const bodyEl = document.getElementById('driver-email-body');
-  if (subjEl) subjEl.value = `🚛 New Load — ${l.id} | ${l.origin} → ${l.dest} | ${fmt(l.gross)}`;
+  const driverFirst = driverName.split(' ')[0] || 'Driver';
+  if (subjEl) subjEl.value = `🚛 New Load — ${l.id} | ${pickup} → ${delivery} | ${fmt(l.gross)}`;
   if (bodyEl) bodyEl.value = [
-    `Hi ${l.driverName.split(' ')[0]},`,
+    `Hi ${driverFirst},`,
     ``,
     `You have been assigned a new load. Please review the details below and confirm.`,
     ``,
@@ -570,13 +665,13 @@ window.onNotifLoadSelect = function() {
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `PICKUP`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `Location:     ${l.origin}`,
+    `Location:     ${pickup}`,
     `Date:         ${l.date}`,
     ``,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `DELIVERY`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `Location:     ${l.dest}`,
+    `Location:     ${delivery}`,
     l.notes ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSPECIAL INSTRUCTIONS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${l.notes}` : '',
     ``,
     `Please reply to confirm you have received this load.`,
@@ -588,13 +683,15 @@ window.onNotifLoadSelect = function() {
   buildBrokerTemplate('en_route', l);
 };
 
+// brokerTemplates receive an enriched context object { l, driverName, pickup, delivery }
+// built in buildBrokerTemplate — no removed fields (l.driverName / l.origin / l.dest)
 const brokerTemplates = {
-  en_route:   l => `Hi ${l.broker || 'Team'},\n\nUpdate for load ${l.id}.\n\nDriver ${l.driverName} is currently en route to the pickup location in ${l.origin}.\n\nEstimated arrival at shipper: Within 2 hours.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
-  loaded:     l => `Hi ${l.broker || 'Team'},\n\nLoad ${l.id} update — driver is loaded and departed.\n\nDriver:       ${l.driverName}\nDeparted:     ${l.origin}\nDestination:  ${l.dest}\n\nWe will keep you updated on progress.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
-  in_transit: l => `Hi ${l.broker || 'Team'},\n\nIn-transit update for load ${l.id}.\n\nDriver:       ${l.driverName}\nDestination:  ${l.dest}\nStatus:       On schedule\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
-  delay:      l => `Hi ${l.broker || 'Team'},\n\nProactive delay notification for load ${l.id}.\n\nDriver:         ${l.driverName}\nReason:         [specify reason]\nUpdated ETA:    [new time]\n\nWe apologize for any inconvenience.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
-  delivered:  l => `Hi ${l.broker || 'Team'},\n\nLoad ${l.id} has been delivered successfully.\n\nDriver:       ${l.driverName}\nDelivered to: ${l.dest}\nDate:         ${new Date().toLocaleDateString('en-US')}\n\nPOD available upon request.\n\nThank you for the business!\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
-  pod:        l => `Hi ${l.broker || 'Team'},\n\nProof of delivery for load ${l.id} is now available.\n\nDriver:   ${l.driverName}\nRoute:    ${l.origin} → ${l.dest}\nStatus:   Delivered ✓\n\nPlease confirm receipt.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`
+  en_route:   ({ l, driverName, pickup        }) => `Hi ${l.broker || 'Team'},\n\nUpdate for load ${l.id}.\n\nDriver ${driverName} is currently en route to the pickup location in ${pickup}.\n\nEstimated arrival at shipper: Within 2 hours.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  loaded:     ({ l, driverName, pickup, delivery }) => `Hi ${l.broker || 'Team'},\n\nLoad ${l.id} update — driver is loaded and departed.\n\nDriver:       ${driverName}\nDeparted:     ${pickup}\nDestination:  ${delivery}\n\nWe will keep you updated on progress.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  in_transit: ({ l, driverName,         delivery }) => `Hi ${l.broker || 'Team'},\n\nIn-transit update for load ${l.id}.\n\nDriver:       ${driverName}\nDestination:  ${delivery}\nStatus:       On schedule\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  delay:      ({ l, driverName                  }) => `Hi ${l.broker || 'Team'},\n\nProactive delay notification for load ${l.id}.\n\nDriver:         ${driverName}\nReason:         [specify reason]\nUpdated ETA:    [new time]\n\nWe apologize for any inconvenience.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  delivered:  ({ l, driverName,         delivery }) => `Hi ${l.broker || 'Team'},\n\nLoad ${l.id} has been delivered successfully.\n\nDriver:       ${driverName}\nDelivered to: ${delivery}\nDate:         ${new Date().toLocaleDateString('en-US')}\n\nPOD available upon request.\n\nThank you for the business!\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`,
+  pod:        ({ l, driverName, pickup, delivery }) => `Hi ${l.broker || 'Team'},\n\nProof of delivery for load ${l.id} is now available.\n\nDriver:   ${driverName}\nRoute:    ${pickup} → ${delivery}\nStatus:   Delivered ✓\n\nPlease confirm receipt.\n\n— Reliable Network\nops@reliablenetwork.net | 24/7 Dispatch`
 };
 
 function buildBrokerTemplate(key, load) {
@@ -604,8 +701,16 @@ function buildBrokerTemplate(key, load) {
     load = loads.find(x => x.id === id);
     if (!load) return;
   }
-  const el = document.getElementById('broker-preview');
-  if (el) el.value = brokerTemplates[key]?.(load) || '';
+  // Resolve driver name, truck unit number, and route strings from cache
+  const drivers    = DB.get('drivers');
+  const driverMap  = Object.fromEntries(drivers.map(d => [d.id, d.name || d.id]));
+  const driverName = driverMap[load.driverId] || load.driverId || '—';
+  const pickup     = [load.originCity, load.originState].filter(Boolean).join(', ') || '—';
+  const delivery   = [load.destCity,   load.destState  ].filter(Boolean).join(', ') || '—';
+
+  const ctx = { l: load, driverName, pickup, delivery };
+  const el  = document.getElementById('broker-preview');
+  if (el) el.value = brokerTemplates[key]?.(ctx) || '';
 }
 
 window.selectBrokerTmpl = function(el, key) {
@@ -658,11 +763,16 @@ window.showNotifTab = function(name, el) {
 // The Save button is disabled and labelled accordingly.
 
 window.calcLoad = function() {
+  // Phase 1: show gross rate only.
+  // Financial splits (driver pay, fuel deductions, net) must come from
+  // service-agreement data in the database — never hard-coded percentages here.
   const g = parseFloat(document.getElementById('f-gross')?.value) || 0;
   setText('c-gross', fmt(g));
-  setText('c-12',    fmt(g * 0.12));
-  setText('c-3',     fmt(g * 0.03));
-  setText('c-9',     fmt(g * 0.09));
+  // Hide any split preview elements left in the form HTML
+  ['c-12','c-3','c-9'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { const card = el.closest('.calc-row') || el.parentElement; if (card) card.style.display = 'none'; }
+  });
 };
 
 window.clearForm = function() {
@@ -698,81 +808,38 @@ window.dzDrop      = function(e) {
 
 window.dzHandleFile = function(file) {
   if (!file) return;
-  const dz = document.getElementById('dropZone');
-  if (!dz) return;
-  dz.classList.add('dz-busy');
-  document.getElementById('dzDefault').style.display    = 'none';
-  document.getElementById('dzProcessing').style.display = 'flex';
-  document.getElementById('dzSuccess').style.display    = 'none';
-
-  const steps = [
-    [500,  'Reading PDF structure…',     'Locating load details'],
-    [1100, 'Extracting load data…',      'Found origin & destination'],
-    [1700, 'Parsing rate information…',  'Calculating commission'],
-    [2300, 'Identifying broker details…','Matching load number'],
-  ];
-  steps.forEach(([delay, text, sub]) => setTimeout(() => {
-    setText('dzProcText', text);
-    setText('dzProcSub',  sub);
-  }, delay));
-
-  setTimeout(() => {
-    const reader = new FileReader();
-    reader.onload = async ev => {
-      const base64 = ev.target.result.split(',')[1];
-      await dzParseWithAI(base64);
-    };
-    reader.readAsDataURL(file);
-  }, 2600);
+  // PDF parsing is disabled in Phase 1 — no API key in the browser.
+  // Show the error immediately without a fake progress sequence.
+  dzShowParseError('PDF parsing is not yet available. Please enter the load details manually.');
 };
 
-async function dzParseWithAI(base64) {
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-            { type: 'text', text: `You are an expert at reading trucking rate confirmation PDFs from freight brokers. Extract load details and return ONLY a valid JSON object — no markdown, no backticks, no explanation.
+async function dzParseWithAI(_base64) {
+  // ── PHASE 1: Browser-side AI parsing is disabled ─────────────────────────────
+  // Calling the Anthropic API directly from the browser would require embedding
+  // a secret API key in frontend code, which is not acceptable.
+  //
+  // PDF parsing will be re-enabled in a future phase through a secure
+  // server-side function (Supabase Edge Function or equivalent) so the API key
+  // never touches the browser.
+  //
+  // For now, show a clear error so the dispatcher knows to enter the load manually.
+  dzShowParseError('PDF parsing is not yet available. Please enter the load details manually.');
+}
 
-IDENTIFY THE BROKER FIRST then apply the correct rules:
-
-HUB GROUP: loadId=Load#, brokerName="Hub Group", origin=PU1 address+city+state, destination=DEL2 address+city+state, pickupDate=PU1 date YYYY-MM-DD, deliveryDate=DEL date YYYY-MM-DD, grossRate=Total Carrier Pay (number only)
-
-KINGPOST: loadId=Load Confirmation or Order# number, brokerName="Kingpost", origin=PU1, destination=SO2 or DEL, grossRate=Total Carrier Pay (number only)
-
-LONGSHIP: loadId=LS PO#, brokerName="Longship", origin=pickup Shed+city+state, destination=Consignee+city+state, grossRate=Estimated Rate To The Truck (number only)
-
-SYNCHROGISTICS: loadId=Load Number, brokerName="Synchrogistics", origin=Shipper Pickup, destination=Consignee Delivery, grossRate=Net Freight Charges or Total Cost (number only)
-
-UBER FREIGHT: loadId=Load Number, brokerName="Uber Freight", origin=Shipper+city+state, destination=Consignee+city+state, grossRate=Agreed upon price or Line Haul (number only)
-
-ANY OTHER BROKER: loadId=first number after Load# / PO# / Order# / Ref#, brokerName=largest company name at top (NEVER "DYLAND TRUCKING INC" — that is the carrier), grossRate=Total Carrier Pay or Line Haul or Flat Rate (number only)
-
-Rules: dates YYYY-MM-DD, grossRate NUMBER only (no $ or commas), miles NUMBER only.
-
-Return exactly:
-{"brokerName":"","loadId":"","brokerPhone":"","brokerEmail":"","brokerContact":"","origin":"","pickupAddress":"","pickupDate":"","destination":"","deliveryAddress":"","deliveryDate":"","grossRate":0,"miles":0,"commodity":"","equipment":"","weight":"","notes":""}` }
-          ]
-        }]
-      })
-    });
-    const data = await response.json();
-    const raw  = data.content.map(b => b.text || '').join('').trim();
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-    dzFillForm(parsed);
-  } catch (err) {
-    dzFillForm({
-      brokerName: 'Demo Broker', loadId: 'DEMO-001',
-      origin: 'Tampa, FL', destination: 'Atlanta, GA', grossRate: 3500,
-      notes: 'Demo data — PDF parse failed'
-    });
+function dzShowParseError(message) {
+  const dz = document.getElementById('dropZone');
+  if (dz) { dz.classList.remove('dz-busy', 'dz-done'); }
+  document.getElementById('dzProcessing').style.display = 'none';
+  document.getElementById('dzDefault').style.display    = 'flex';
+  // Show error message in drop zone or as a toast
+  const errEl = document.getElementById('dzError');
+  if (errEl) {
+    errEl.textContent = message;
+    errEl.style.display = 'block';
+  } else {
+    showToast('⚠ ' + message);
   }
+  console.warn('[RN] PDF parse not available:', message);
 }
 
 function dzFillForm(data) {

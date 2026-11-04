@@ -49,12 +49,14 @@ export const Auth = {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'https://reliablenetwork.net/reset-password.html'
     });
-    // Log the error internally for debugging, but do not surface it to the
-    // caller — callers must always show a generic confirmation message.
     if (error) {
-      console.warn('[RN] resetPasswordForEmail error (not exposed to UI):', error.status, error.message);
+      // Log status/code for dev diagnostics (rate-limit = 429, etc.).
+      // Never logs passwords or tokens.
+      console.warn('[RN] resetPasswordForEmail failed — status:', error.status, '| code:', error.code, '| message:', error.message);
+    } else {
+      console.log('[RN] resetPasswordForEmail: request accepted by Supabase (200 OK)');
     }
-    // Intentionally returns void in both success and error cases.
+    // Always returns void — callers show a generic UI message regardless.
   },
 
   // Subscribe to auth state changes.
@@ -78,7 +80,8 @@ export async function getWorkspaceMembership() {
 
   const { data, error } = await supabase
     .from('workspace_memberships')
-    .select('workspace_id, role');
+    .select('workspace_id, role')
+    .eq('is_active', true);
 
   if (error) throw new Error('Could not resolve workspace membership: ' + error.message);
   if (!data || data.length === 0) throw new Error('No workspace membership found for this user.');
@@ -141,32 +144,47 @@ export const DB = {
   }
 };
 
-// ── Bootstrap: load loads / drivers / trucks from Supabase ───────────────────
+// ── Bootstrap: load all business data from Supabase ─────────────────────────
+// Fetches loads, drivers, trucks, and organizations in parallel.
+// Organizations are fetched workspace-scoped for broker name resolution.
+// On failure, cache is cleared rather than falling back to stale/fake records.
 
 export async function loadAllFromSupabase() {
   showLoading('Connecting to Supabase…');
   try {
-    const [rawLoads, rawDrivers, rawTrucks] = await Promise.all([
+    const [rawLoads, rawDrivers, rawTrucks, rawOrgs] = await Promise.all([
       DB.load('loads'),
       DB.load('drivers'),
-      DB.load('trucks')
+      DB.load('trucks'),
+      DB.load('organizations')
     ]);
 
-    const loads   = rawLoads.map(normalizeLoad);
+    // Build org lookup map: id → name, for broker resolution
+    const orgMap = {};
+    (rawOrgs || []).forEach(o => { if (o.id) orgMap[o.id] = o.name || o.id; });
+
+    const loads   = rawLoads.map(l => normalizeLoad(l, orgMap));
     const drivers = rawDrivers.map(normalizeDriver);
     const trucks  = rawTrucks.map(normalizeTruck);
 
     Cache.set('loads',   loads);
     Cache.set('drivers', drivers);
     Cache.set('trucks',  trucks);
+    Cache.set('orgs',    rawOrgs || []);
 
-    console.log(`[RN] Loaded ${loads.length} loads, ${drivers.length} drivers, ${trucks.length} trucks`);
+    console.log(`[RN] Loaded ${loads.length} loads · ${drivers.length} drivers · ${trucks.length} trucks · ${rawOrgs?.length || 0} orgs`);
     hideLoading();
     showSyncStatus(`✓ ${loads.length} loads · ${drivers.length} drivers · ${trucks.length} trucks`);
   } catch (err) {
-    console.warn('[RN] Supabase load failed, using local cache:', err);
+    console.warn('[RN] Supabase load failed:', err);
+    // Clear cache so stale/fake records are not shown — render functions
+    // should show "No records found" empty states, not old mock data.
+    Cache.clear('loads');
+    Cache.clear('drivers');
+    Cache.clear('trucks');
+    Cache.clear('orgs');
     hideLoading();
-    showSyncStatus('⚠ Using cached data — Supabase unreachable', true);
+    showSyncStatus('⚠ Could not load data — check connection', true);
   }
 }
 
@@ -178,7 +196,7 @@ export async function loadAllFromSupabase() {
 // logic and will be populated server-side in a future phase. The portal
 // displays gross_rate only; no hard-coded percentages in frontend code.
 
-function normalizeLoad(l) {
+function normalizeLoad(l, orgMap = {}) {
   return {
     // Identifiers
     id:          l.load_number              || l.id,
@@ -188,7 +206,7 @@ function normalizeLoad(l) {
     // Dates
     date:        l.pickup_date              || (l.created_at || '').split('T')[0] || '',
 
-    // Driver / truck references
+    // Driver / truck references (IDs only — names resolved from drivers cache in app.js)
     driverId:    l.driver_id                || '',
     truckId:     l.truck_id                 || '',
 
@@ -203,8 +221,9 @@ function normalizeLoad(l) {
     // Rate — gross only; splits come from DB financial logic, not frontend math
     gross:       Number(l.gross_rate || 0),
 
-    // Broker
-    broker:      l.broker_name              || '',
+    // Broker — resolved from organizations table via broker_org_id
+    brokerOrgId: l.broker_org_id            || '',
+    broker:      (l.broker_org_id && orgMap[l.broker_org_id]) || '',
     brokerLoad:  l.broker_load_number       || '',
 
     // Status (display label — see mapLoadStatus)
@@ -228,6 +247,13 @@ function mapLoadStatus(s) {
 }
 
 function normalizeDriver(d) {
+  // v3.5 schema has no `status` column.
+  // Active state is derived from real fields:
+  //   archived_at      — set when the driver record is archived
+  //   termination_date — set when the driver is terminated
+  // A driver is considered inactive if either field is populated.
+  const isActive = !d.archived_at && !d.termination_date;
+
   return {
     // Identifiers
     id:           d.id,
@@ -242,8 +268,10 @@ function normalizeDriver(d) {
     phone:        d.phone                   || '',
     email:        d.email                   || '',
 
-    // Status
-    status:       d.status                  || 'Active',
+    // Active/inactive derived from real schema fields — no invented `status` column
+    isActive,
+    archivedAt:        d.archived_at        || null,
+    terminationDate:   d.termination_date   || null,
 
     // License (v3.5 columns)
     licenseNumber: d.license_number         || '',
@@ -256,10 +284,15 @@ function normalizeDriver(d) {
 }
 
 function normalizeTruck(t) {
+  // v3.5 schema has no `status` column on trucks.
+  // Active state is derived from archived_at.
+  const isActive = !t.archived_at;
+
   return {
-    // Identifiers (v3.5 uses unit_number, not truck_number)
-    id:           t.unit_number             || t.id,
+    // Identifiers — keep UUID as the relational key; unitNumber is display-only
+    id:           t.id,                       // UUID — used for FK relationships (load.truckId)
     _uuid:        t.id,
+    unitNumber:   t.unit_number              || '',  // Human-readable unit label (e.g. "2164")
     unitType:     t.unit_type               || '',
 
     // Vehicle details
@@ -273,8 +306,9 @@ function normalizeTruck(t) {
     plateState:   t.plate_state             || '',
     plateExpiry:  t.plate_expiry            || '',
 
-    // Status
-    status:       t.status                  || 'Active',
+    // Active/inactive derived from real schema fields — no invented `status` column
+    isActive,
+    archivedAt:   t.archived_at             || null,
 
     // Workspace
     workspaceId:  t.workspace_id            || ''
